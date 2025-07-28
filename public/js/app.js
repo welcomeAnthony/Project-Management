@@ -523,6 +523,12 @@ function selectPortfolio(portfolio) {
 
 function displayPortfolioDetails(portfolio) {
     const container = document.getElementById('portfolioDetails');
+    
+    // Check if portfolio has items to determine if delete should be enabled
+    const hasItems = portfolio.item_count > 0;
+    const deleteButtonClass = hasItems ? 'btn-outline-secondary disabled' : 'btn-outline-danger';
+    const deleteButtonTitle = hasItems ? 'Cannot delete portfolio with items' : 'Delete portfolio';
+    
     container.innerHTML = `
         <h6>${portfolio.name}</h6>
         <p class="text-muted">${portfolio.description || 'No description'}</p>
@@ -541,10 +547,14 @@ function displayPortfolioDetails(portfolio) {
             <button class="btn btn-sm btn-outline-primary me-2 edit-portfolio-btn" data-portfolio-id="${portfolio.id}">
                 <i class="fas fa-edit me-1"></i>Edit
             </button>
-            <button class="btn btn-sm btn-outline-danger delete-portfolio-btn" data-portfolio-id="${portfolio.id}">
+            <button class="btn btn-sm ${deleteButtonClass} delete-portfolio-btn" 
+                    data-portfolio-id="${portfolio.id}" 
+                    title="${deleteButtonTitle}"
+                    ${hasItems ? 'disabled' : ''}>
                 <i class="fas fa-trash me-1"></i>Delete
             </button>
         </div>
+        ${hasItems ? '<small class="text-muted mt-2 d-block"><i class="fas fa-info-circle me-1"></i>Remove all items before deleting this portfolio</small>' : ''}
     `;
 }
 
@@ -610,7 +620,22 @@ async function editPortfolio(portfolioId) {
 
 async function confirmDeletePortfolio(portfolioId) {
     try {
-        if (confirm('Are you sure you want to delete this portfolio? This action cannot be undone.')) {
+        // Get the portfolio details first to check item count
+        const portfolioResponse = await api.getPortfolio(portfolioId);
+        if (!portfolioResponse.success) {
+            showAlert('Failed to get portfolio details', 'danger');
+            return;
+        }
+        
+        const portfolio = portfolioResponse.data;
+        
+        // Check if portfolio has any items
+        if (portfolio.item_count > 0) {
+            showAlert(`Cannot delete portfolio "${portfolio.name}" because it contains ${portfolio.item_count} item(s). Please remove all items first.`, 'warning');
+            return;
+        }
+        
+        if (confirm(`Are you sure you want to delete the portfolio "${portfolio.name}"? This action cannot be undone.`)) {
             await api.deletePortfolio(portfolioId);
             showAlert('Portfolio deleted successfully', 'success');
             await loadPortfoliosSection();
@@ -1117,8 +1142,8 @@ function setupEventListeners() {
             editPortfolio(parseInt(portfolioId));
         }
         
-        // Delete portfolio button
-        if (e.target.closest('.delete-portfolio-btn')) {
+        // Delete portfolio button - only if not disabled
+        if (e.target.closest('.delete-portfolio-btn') && !e.target.closest('.delete-portfolio-btn').disabled) {
             const portfolioId = e.target.closest('.delete-portfolio-btn').dataset.portfolioId;
             confirmDeletePortfolio(parseInt(portfolioId));
         }
