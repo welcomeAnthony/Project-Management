@@ -1,7 +1,7 @@
 // API Client for Portfolio Management System
 
 class ApiClient {
-    constructor(baseURL = 'http://localhost:8081/api') {
+    constructor(baseURL = 'http://localhost:3000/api') {
         this.baseURL = baseURL;
     }
 
