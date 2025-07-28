@@ -583,7 +583,7 @@ function populateEditForm(item) {
         <div class="row">
             <div class="col-md-6 mb-3">
                 <label class="form-label">Purchase Date *</label>
-                <input type="date" class="form-control" id="editPurchaseDate" value="${item.purchase_date}" required>
+                <input type="date" class="form-control" id="editPurchaseDate" value="${formatDateForInput(item.purchase_date)}" required>
             </div>
             <div class="col-md-6 mb-3">
                 <label class="form-label">Currency</label>
@@ -725,6 +725,19 @@ function setupEventListeners() {
             confirmDeletePortfolio(parseInt(portfolioId));
         }
     });
+}
+
+// Utility function to format date for HTML date input (yyyy-MM-dd)
+function formatDateForInput(dateString) {
+    if (!dateString) return '';
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) return '';
+    
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    
+    return `${year}-${month}-${day}`;
 }
 
 // Helper function to update navigation active state
