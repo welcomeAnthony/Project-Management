@@ -166,7 +166,24 @@ async function loadPerformanceChart() {
     try {
         const response = await api.getPortfolioPerformance(currentPortfolio.id, 30);
         if (response.success) {
-            const performanceData = response.data.performance;
+            let performanceData = response.data.performance;
+            
+            // If no historical data, create a simple chart with current portfolio value
+            if (!performanceData || performanceData.length === 0) {
+                const currentDate = new Date();
+                const currentValue = currentPortfolio.total_value || 0;
+                
+                // Create a simple 7-day chart with current value
+                performanceData = [];
+                for (let i = 6; i >= 0; i--) {
+                    const date = new Date(currentDate);
+                    date.setDate(date.getDate() - i);
+                    performanceData.push({
+                        date: date.toISOString().split('T')[0],
+                        total_value: currentValue
+                    });
+                }
+            }
             
             const ctx = document.getElementById('performanceChart').getContext('2d');
             
@@ -180,7 +197,7 @@ async function loadPerformanceChart() {
                     labels: performanceData.map(p => formatDate(p.date)),
                     datasets: [{
                         label: 'Portfolio Value',
-                        data: performanceData.map(p => p.total_value),
+                        data: performanceData.map(p => parseFloat(p.total_value) || 0),
                         borderColor: '#007bff',
                         backgroundColor: 'rgba(0, 123, 255, 0.1)',
                         borderWidth: 2,
