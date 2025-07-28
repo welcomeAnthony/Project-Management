@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Portfolio Management System</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="css/style.css" rel="stylesheet">
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+        <div class="container">
+            <a class="navbar-brand" href="#"><i class="fas fa-chart-line me-2"></i>Portfolio Manager</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto">
+                    <li class="nav-item">
+                        <a class="nav-link active" href="#" onclick="showSection('dashboard')">
+                            <i class="fas fa-tachometer-alt me-1"></i>Dashboard
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#" onclick="showSection('portfolios')">
+                            <i class="fas fa-briefcase me-1"></i>Portfolios
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#" onclick="showSection('add-item')">
+                            <i class="fas fa-plus me-1"></i>Add Item
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="http://localhost:3000/api-docs" target="_blank">
+                            <i class="fas fa-book me-1"></i>API Docs
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="container-fluid mt-4">
+        <!-- Loading Spinner -->
+        <div id="loading" class="text-center" style="display: none;">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+        </div>
+
+        <!-- Alert Messages -->
+        <div id="alert-container"></div>
+
+        <!-- Dashboard Section -->
+        <div id="dashboard-section" class="content-section">
+            <div class="row">
+                <div class="col-md-8">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5><i class="fas fa-chart-area me-2"></i>Portfolio Performance</h5>
+                        </div>
+                        <div class="card-body">
+                            <canvas id="performanceChart" height="100"></canvas>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5><i class="fas fa-pie-chart me-2"></i>Asset Allocation</h5>
+                        </div>
+                        <div class="card-body">
+                            <canvas id="allocationChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row mt-4">
+                <div class="col-md-3">
+                    <div class="card text-center bg-primary text-white">
+                        <div class="card-body">
+                            <h4 id="totalValue">$0.00</h4>
+                            <p class="mb-0">Total Portfolio Value</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card text-center bg-success text-white">
+                        <div class="card-body">
+                            <h4 id="totalGain">$0.00</h4>
+                            <p class="mb-0">Total Gain/Loss</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card text-center bg-info text-white">
+                        <div class="card-body">
+                            <h4 id="totalItems">0</h4>
+                            <p class="mb-0">Portfolio Items</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card text-center bg-warning text-white">
+                        <div class="card-body">
+                            <h4 id="gainPercent">0.00%</h4>
+                            <p class="mb-0">Gain/Loss %</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row mt-4">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5><i class="fas fa-list me-2"></i>Portfolio Items</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table table-striped" id="portfolioItemsTable">
+                                    <thead>
+                                        <tr>
+                                            <th>Symbol</th>
+                                            <th>Name</th>
+                                            <th>Type</th>
+                                            <th>Quantity</th>
+                                            <th>Purchase Price</th>
+                                            <th>Current Price</th>
+                                            <th>Current Value</th>
+                                            <th>Gain/Loss</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="portfolioItemsBody">
+                                        <!-- Items will be populated here -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Portfolios Section -->
+        <div id="portfolios-section" class="content-section" style="display: none;">
+            <div class="row">
+                <div class="col-md-8">
+                    <div class="card">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <h5><i class="fas fa-briefcase me-2"></i>My Portfolios</h5>
+                            <button class="btn btn-primary btn-sm" onclick="showCreatePortfolioModal()">
+                                <i class="fas fa-plus me-1"></i>Create Portfolio
+                            </button>
+                        </div>
+                        <div class="card-body">
+                            <div id="portfoliosList">
+                                <!-- Portfolios will be populated here -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5><i class="fas fa-info-circle me-2"></i>Portfolio Details</h5>
+                        </div>
+                        <div class="card-body" id="portfolioDetails">
+                            <p class="text-muted">Select a portfolio to view details</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Add Item Section -->
+        <div id="add-item-section" class="content-section" style="display: none;">
+            <div class="row justify-content-center">
+                <div class="col-md-8">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5><i class="fas fa-plus me-2"></i>Add Portfolio Item</h5>
+                        </div>
+                        <div class="card-body">
+                            <form id="addItemForm">
+                                <div class="row">
+                                    <div class="col-md-6 mb-3">
+                                        <label for="portfolioSelect" class="form-label">Portfolio *</label>
+                                        <select class="form-select" id="portfolioSelect" required>
+                                            <option value="">Select Portfolio</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <label for="symbol" class="form-label">Symbol *</label>
+                                        <input type="text" class="form-control" id="symbol" placeholder="e.g., AAPL" required>
+                                    </div>
+                                </div>
+                                <div class="row">
+                                    <div class="col-md-12 mb-3">
+                                        <label for="name" class="form-label">Name *</label>
+                                        <input type="text" class="form-control" id="name" placeholder="e.g., Apple Inc." required>
+                                    </div>
+                                </div>
+                                <div class="row">
+                                    <div class="col-md-6 mb-3">
+                                        <label for="type" class="form-label">Type *</label>
+                                        <select class="form-select" id="type" required>
+                                            <option value="">Select Type</option>
+                                            <option value="stock">Stock</option>
+                                            <option value="bond">Bond</option>
+                                            <option value="etf">ETF</option>
+                                            <option value="mutual_fund">Mutual Fund</option>
+                                            <option value="crypto">Cryptocurrency</option>
+                                            <option value="cash">Cash</option>
+                                            <option value="other">Other</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <label for="sector" class="form-label">Sector</label>
+                                        <input type="text" class="form-control" id="sector" placeholder="e.g., Technology">
+                                    </div>
+                                </div>
+                                <div class="row">
+                                    <div class="col-md-4 mb-3">
+                                        <label for="quantity" class="form-label">Quantity *</label>
+                                        <input type="number" class="form-control" id="quantity" step="0.000001" required>
+                                    </div>
+                                    <div class="col-md-4 mb-3">
+                                        <label for="purchasePrice" class="form-label">Purchase Price *</label>
+                                        <input type="number" class="form-control" id="purchasePrice" step="0.01" required>
+                                    </div>
+                                    <div class="col-md-4 mb-3">
+                                        <label for="currentPrice" class="form-label">Current Price</label>
+                                        <input type="number" class="form-control" id="currentPrice" step="0.01">
+                                    </div>
+                                </div>
+                                <div class="row">
+                                    <div class="col-md-6 mb-3">
+                                        <label for="purchaseDate" class="form-label">Purchase Date *</label>
+                                        <input type="date" class="form-control" id="purchaseDate" required>
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <label for="currency" class="form-label">Currency</label>
+                                        <select class="form-select" id="currency">
+                                            <option value="USD">USD</option>
+                                            <option value="EUR">EUR</option>
+                                            <option value="GBP">GBP</option>
+                                            <option value="JPY">JPY</option>
+                                            <option value="CAD">CAD</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="d-grid">
+                                    <button type="submit" class="btn btn-primary">
+                                        <i class="fas fa-plus me-1"></i>Add Item
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Create Portfolio Modal -->
+    <div class="modal fade" id="createPortfolioModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Create New Portfolio</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="createPortfolioForm">
+                        <div class="mb-3">
+                            <label for="portfolioName" class="form-label">Portfolio Name *</label>
+                            <input type="text" class="form-control" id="portfolioName" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="portfolioDescription" class="form-label">Description</label>
+                            <textarea class="form-control" id="portfolioDescription" rows="3"></textarea>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" onclick="createPortfolio()">Create Portfolio</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Item Modal -->
+    <div class="modal fade" id="editItemModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Edit Portfolio Item</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="editItemForm">
+                        <!-- Form fields will be populated dynamically -->
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" onclick="updateItem()">Update Item</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <script src="js/api.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>
