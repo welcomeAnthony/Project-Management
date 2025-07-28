@@ -1162,3 +1162,26 @@ async function refreshAll() {
         showLoading(false);
     }
 }
+
+//new
+// 假设 allPortfolioItems 存储所有项目，displayPortfolioItems(items) 渲染表格
+document.getElementById('portfolioSearchBtn').addEventListener('click', function() {
+    const query = document.getElementById('portfolioSearchInput').value.trim().toLowerCase();
+    if (!query) {
+        displayPortfolioItemsWithPagination(); // 显示全部
+        return;
+    }
+    const filtered = allPortfolioItems.filter(item =>
+        (item.symbol && item.symbol.toLowerCase().includes(query)) ||
+        (item.name && item.name.toLowerCase().includes(query)) ||
+        (item.type && item.type.toLowerCase().includes(query))
+    );
+    displayPortfolioItems(filtered);
+});
+
+// 支持回车搜索
+document.getElementById('portfolioSearchInput').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') {
+        document.getElementById('portfolioSearchBtn').click();
+    }
+});
