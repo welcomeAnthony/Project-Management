@@ -70,6 +70,12 @@ async function loadDefaultPortfolio() {
         const response = await api.getPortfolios();
         if (response.success && response.data.length > 0) {
             currentPortfolio = response.data[0];
+            
+            // Update dashboard portfolio selector
+            const dashboardSelect = document.getElementById('dashboardPortfolioSelect');
+            if (dashboardSelect && currentPortfolio) {
+                dashboardSelect.value = currentPortfolio.id;
+            }
         }
     } catch (error) {
         console.error('Failed to load default portfolio:', error);
@@ -280,6 +286,7 @@ async function loadPortfolios() {
 }
 
 function updatePortfolioSelect(portfolios) {
+    // Update the Add Item form portfolio selector
     const select = document.getElementById('portfolioSelect');
     select.innerHTML = '<option value="">Select Portfolio</option>';
     
@@ -289,6 +296,22 @@ function updatePortfolioSelect(portfolios) {
         option.textContent = portfolio.name;
         select.appendChild(option);
     });
+    
+    // Update the Dashboard portfolio selector
+    const dashboardSelect = document.getElementById('dashboardPortfolioSelect');
+    if (dashboardSelect) {
+        dashboardSelect.innerHTML = '<option value="">Select Portfolio...</option>';
+        
+        portfolios.forEach(portfolio => {
+            const option = document.createElement('option');
+            option.value = portfolio.id;
+            option.textContent = portfolio.name;
+            if (currentPortfolio && portfolio.id === currentPortfolio.id) {
+                option.selected = true;
+            }
+            dashboardSelect.appendChild(option);
+        });
+    }
 }
 
 async function loadPortfoliosSection() {
@@ -299,6 +322,23 @@ async function loadPortfoliosSection() {
         }
     } catch (error) {
         console.error('Failed to load portfolios section:', error);
+    }
+}
+
+// Switch to a specific portfolio
+async function switchToPortfolio(portfolioId) {
+    try {
+        showLoading(true);
+        const response = await api.getPortfolio(portfolioId);
+        if (response.success) {
+            currentPortfolio = response.data;
+            await loadDashboard();
+            showAlert(`Switched to portfolio: ${currentPortfolio.name}`, 'success');
+        }
+    } catch (error) {
+        showAlert('Failed to switch portfolio: ' + error.message, 'danger');
+    } finally {
+        showLoading(false);
     }
 }
 
@@ -697,6 +737,14 @@ function setupEventListeners() {
     // Symbol input formatting
     document.getElementById('symbol').addEventListener('input', function() {
         this.value = this.value.toUpperCase();
+    });
+    
+    // Dashboard portfolio selector
+    document.getElementById('dashboardPortfolioSelect').addEventListener('change', async function() {
+        const portfolioId = parseInt(this.value);
+        if (portfolioId) {
+            await switchToPortfolio(portfolioId);
+        }
     });
     
     // Event delegation for dynamically created buttons
