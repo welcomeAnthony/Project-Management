@@ -95,13 +95,25 @@ async function loadPortfolioSummary() {
             document.getElementById('totalItems').textContent = summary.total_items;
             document.getElementById('gainPercent').textContent = formatPercent(summary.overall_gain_loss_percent);
             
-            // Update gain/loss colors
-            const gainElement = document.getElementById('totalGain');
-            const percentElement = document.getElementById('gainPercent');
-            const gainClass = getGainLossClass(summary.total_gain_loss);
+            // Update gain/loss card colors dynamically
+            const gainCard = document.getElementById('gainLossCard');
+            const percentCard = document.getElementById('percentCard');
             
-            gainElement.parentElement.className = `card text-center ${summary.total_gain_loss >= 0 ? 'bg-success' : 'bg-danger'} text-white`;
-            percentElement.parentElement.className = `card text-center ${summary.total_gain_loss >= 0 ? 'bg-success' : 'bg-danger'} text-white`;
+            // Remove existing color classes
+            gainCard.classList.remove('positive', 'negative', 'neutral');
+            percentCard.classList.remove('positive', 'negative', 'neutral');
+            
+            // Add appropriate color class based on gain/loss
+            if (summary.total_gain_loss > 0) {
+                gainCard.classList.add('positive');
+                percentCard.classList.add('positive');
+            } else if (summary.total_gain_loss < 0) {
+                gainCard.classList.add('negative');
+                percentCard.classList.add('negative');
+            } else {
+                gainCard.classList.add('neutral');
+                percentCard.classList.add('neutral');
+            }
         }
     } catch (error) {
         console.error('Failed to load portfolio summary:', error);

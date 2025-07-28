@@ -48,6 +48,116 @@ body {
     padding: 1.5rem;
 }
 
+/* Dashboard Cards */
+.dashboard-card {
+    transition: all 0.3s ease;
+    border: none;
+    border-radius: 15px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+    min-height: 180px;
+}
+
+.dashboard-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.15);
+}
+
+.dashboard-card .card-body {
+    padding: 2rem 1.5rem;
+}
+
+.dashboard-icon {
+    opacity: 0.9;
+}
+
+.dashboard-value {
+    font-size: 1.8rem;
+    font-weight: 700;
+    margin: 0;
+    line-height: 1.2;
+}
+
+.dashboard-label {
+    font-size: 0.9rem;
+    font-weight: 500;
+    opacity: 0.9;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* Dynamic colors for gain/loss cards */
+#gainLossCard.positive {
+    background: linear-gradient(135deg, #28a745, #20c997);
+    color: white;
+}
+
+#gainLossCard.negative {
+    background: linear-gradient(135deg, #dc3545, #fd7e14);
+    color: white;
+}
+
+#gainLossCard.neutral {
+    background: linear-gradient(135deg, #6c757d, #adb5bd);
+    color: white;
+}
+
+#percentCard.positive {
+    background: linear-gradient(135deg, #28a745, #20c997);
+    color: white;
+}
+
+#percentCard.negative {
+    background: linear-gradient(135deg, #dc3545, #fd7e14);
+    color: white;
+}
+
+#percentCard.neutral {
+    background: linear-gradient(135deg, #6c757d, #adb5bd);
+    color: white;
+}
+
+/* Enhanced gradients for primary cards */
+.dashboard-card.bg-primary {
+    background: linear-gradient(135deg, #007bff, #0056b3) !important;
+}
+
+.dashboard-card.bg-info {
+    background: linear-gradient(135deg, #17a2b8, #138496) !important;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .dashboard-card {
+        min-height: 160px;
+    }
+    
+    .dashboard-value {
+        font-size: 1.5rem;
+    }
+    
+    .dashboard-icon i {
+        font-size: 1.5rem !important;
+    }
+    
+    .dashboard-card .card-body {
+        padding: 1.5rem 1rem;
+    }
+}
+
+@media (max-width: 576px) {
+    .dashboard-card {
+        min-height: 140px;
+    }
+    
+    .dashboard-value {
+        font-size: 1.3rem;
+    }
+    
+    .dashboard-label {
+        font-size: 0.8rem;
+    }
+}
+
 .btn {
     border-radius: 8px;
     font-weight: 500;

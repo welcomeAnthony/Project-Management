@@ -102,35 +102,47 @@
             </div>
 
             <div class="row mt-4">
-                <div class="col-md-3">
-                    <div class="card text-center bg-primary text-white">
-                        <div class="card-body">
-                            <h4 id="totalValue">$0.00</h4>
-                            <p class="mb-0">Total Portfolio Value</p>
+                <div class="col-md-3 col-sm-6 mb-3">
+                    <div class="card dashboard-card text-center bg-primary text-white h-100">
+                        <div class="card-body d-flex flex-column justify-content-center">
+                            <div class="dashboard-icon mb-2">
+                                <i class="fas fa-dollar-sign fa-2x"></i>
+                            </div>
+                            <h3 class="dashboard-value mb-2" id="totalValue">$0.00</h3>
+                            <p class="dashboard-label mb-0">Total Portfolio Value</p>
                         </div>
                     </div>
                 </div>
-                <div class="col-md-3">
-                    <div class="card text-center bg-success text-white">
-                        <div class="card-body">
-                            <h4 id="totalGain">$0.00</h4>
-                            <p class="mb-0">Total Gain/Loss</p>
+                <div class="col-md-3 col-sm-6 mb-3">
+                    <div class="card dashboard-card text-center h-100" id="gainLossCard">
+                        <div class="card-body d-flex flex-column justify-content-center">
+                            <div class="dashboard-icon mb-2">
+                                <i class="fas fa-chart-line fa-2x"></i>
+                            </div>
+                            <h3 class="dashboard-value mb-2" id="totalGain">$0.00</h3>
+                            <p class="dashboard-label mb-0">Total Gain/Loss</p>
                         </div>
                     </div>
                 </div>
-                <div class="col-md-3">
-                    <div class="card text-center bg-info text-white">
-                        <div class="card-body">
-                            <h4 id="totalItems">0</h4>
-                            <p class="mb-0">Portfolio Items</p>
+                <div class="col-md-3 col-sm-6 mb-3">
+                    <div class="card dashboard-card text-center bg-info text-white h-100">
+                        <div class="card-body d-flex flex-column justify-content-center">
+                            <div class="dashboard-icon mb-2">
+                                <i class="fas fa-briefcase fa-2x"></i>
+                            </div>
+                            <h3 class="dashboard-value mb-2" id="totalItems">0</h3>
+                            <p class="dashboard-label mb-0">Portfolio Items</p>
                         </div>
                     </div>
                 </div>
-                <div class="col-md-3">
-                    <div class="card text-center bg-warning text-white">
-                        <div class="card-body">
-                            <h4 id="gainPercent">0.00%</h4>
-                            <p class="mb-0">Gain/Loss %</p>
+                <div class="col-md-3 col-sm-6 mb-3">
+                    <div class="card dashboard-card text-center h-100" id="percentCard">
+                        <div class="card-body d-flex flex-column justify-content-center">
+                            <div class="dashboard-icon mb-2">
+                                <i class="fas fa-percentage fa-2x"></i>
+                            </div>
+                            <h3 class="dashboard-value mb-2" id="gainPercent">0.00%</h3>
+                            <p class="dashboard-label mb-0">Gain/Loss %</p>
                         </div>
                     </div>
                 </div>
