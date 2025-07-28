@@ -151,9 +151,9 @@ class PortfolioController {
       const sectorAllocation = await PortfolioItem.getAllocationBySector(id);
 
       // Calculate summary statistics
-      const totalGainLoss = items.reduce((sum, item) => sum + (item.gain_loss_amount || 0), 0);
-      const totalInvestment = items.reduce((sum, item) => sum + item.purchase_value, 0);
-      const totalCurrentValue = items.reduce((sum, item) => sum + item.current_value, 0);
+      const totalGainLoss = items.reduce((sum, item) => sum + (parseFloat(item.gain_loss_amount) || 0), 0);
+      const totalInvestment = items.reduce((sum, item) => sum + (parseFloat(item.purchase_value) || 0), 0);
+      const totalCurrentValue = items.reduce((sum, item) => sum + (parseFloat(item.current_value) || 0), 0);
       const overallGainLossPercent = totalInvestment > 0 ? (totalGainLoss / totalInvestment) * 100 : 0;
 
       res.json({

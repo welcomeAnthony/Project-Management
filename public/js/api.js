@@ -156,18 +156,33 @@ function showLoading(show = true) {
 }
 
 function formatCurrency(amount, currency = 'USD') {
+    const numericAmount = parseFloat(amount);
+    if (isNaN(numericAmount)) {
+        return new Intl.NumberFormat('en-US', {
+            style: 'currency',
+            currency: currency
+        }).format(0);
+    }
     return new Intl.NumberFormat('en-US', {
         style: 'currency',
         currency: currency
-    }).format(amount);
+    }).format(numericAmount);
 }
 
 function formatPercent(value, decimals = 2) {
+    const numericValue = parseFloat(value);
+    if (isNaN(numericValue)) {
+        return new Intl.NumberFormat('en-US', {
+            style: 'percent',
+            minimumFractionDigits: decimals,
+            maximumFractionDigits: decimals
+        }).format(0);
+    }
     return new Intl.NumberFormat('en-US', {
         style: 'percent',
         minimumFractionDigits: decimals,
         maximumFractionDigits: decimals
-    }).format(value / 100);
+    }).format(numericValue / 100);
 }
 
 function formatDate(dateString) {

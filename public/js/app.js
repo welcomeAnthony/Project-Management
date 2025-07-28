@@ -502,9 +502,17 @@ async function addPortfolioItem() {
             form.reset();
             clearFormValidation(form);
             
-            // Refresh dashboard if it's the current portfolio
-            if (currentPortfolio && currentPortfolio.id === itemData.portfolio_id) {
-                await loadDashboard();
+            // Always refresh dashboard and portfolio data after adding an item
+            // This ensures the UI is updated regardless of which portfolio the item was added to
+            await Promise.all([
+                loadDashboard(),
+                loadPortfolios() // Refresh portfolio list as well
+            ]);
+            
+            // If we're currently viewing the portfolios section, refresh that too
+            const currentSection = document.querySelector('.content-section[style*="block"]');
+            if (currentSection && currentSection.id === 'portfolios-section') {
+                await loadPortfoliosSection();
             }
         }
     } catch (error) {
