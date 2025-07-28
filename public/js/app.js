@@ -120,16 +120,119 @@ async function loadPortfolioSummary() {
     }
 }
 
+// Pagination variables
+let allPortfolioItems = [];
+let currentPage = 1;
+const itemsPerPage = 8;
+
 async function loadPortfolioItems() {
     if (!currentPortfolio) return;
     
     try {
         const response = await api.getPortfolioItems(currentPortfolio.id);
         if (response.success) {
-            displayPortfolioItems(response.data.items);
+            allPortfolioItems = response.data.items;
+            currentPage = 1; // Reset to first page
+            displayPortfolioItemsWithPagination();
         }
     } catch (error) {
         console.error('Failed to load portfolio items:', error);
+    }
+}
+
+function displayPortfolioItemsWithPagination() {
+    const totalItems = allPortfolioItems.length;
+    const totalPages = Math.ceil(totalItems / itemsPerPage);
+    
+    // Adjust current page if it's beyond the available pages
+    if (currentPage > totalPages && totalPages > 0) {
+        currentPage = totalPages;
+    } else if (currentPage < 1) {
+        currentPage = 1;
+    }
+    
+    // Calculate start and end indices for current page
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const endIndex = Math.min(startIndex + itemsPerPage, totalItems);
+    
+    // Get items for current page
+    const currentPageItems = allPortfolioItems.slice(startIndex, endIndex);
+    
+    // Display items
+    displayPortfolioItems(currentPageItems);
+    
+    // Update pagination controls
+    updatePaginationControls(totalItems, totalPages);
+}
+
+function updatePaginationControls(totalItems, totalPages) {
+    const paginationContainer = document.getElementById('paginationContainer');
+    const paginationInfo = document.getElementById('paginationInfo');
+    const paginationControls = document.getElementById('paginationControls');
+    
+    if (totalItems === 0) {
+        paginationContainer.style.display = 'none';
+        return;
+    }
+    
+    // Show pagination container
+    paginationContainer.style.display = 'flex';
+    
+    // Update info text
+    const startItem = (currentPage - 1) * itemsPerPage + 1;
+    const endItem = Math.min(currentPage * itemsPerPage, totalItems);
+    paginationInfo.textContent = `Showing ${startItem} - ${endItem} of ${totalItems} items`;
+    
+    // Clear existing pagination buttons
+    paginationControls.innerHTML = '';
+    
+    if (totalPages <= 1) {
+        paginationContainer.style.display = 'none';
+        return;
+    }
+    
+    // Previous button
+    const prevLi = document.createElement('li');
+    prevLi.className = `page-item ${currentPage === 1 ? 'disabled' : ''}`;
+    prevLi.innerHTML = `<a class="page-link" href="#" data-page="${currentPage - 1}">Previous</a>`;
+    paginationControls.appendChild(prevLi);
+    
+    // Page numbers
+    for (let i = 1; i <= totalPages; i++) {
+        // Show first page, last page, current page, and pages around current page
+        if (i === 1 || i === totalPages || (i >= currentPage - 1 && i <= currentPage + 1)) {
+            const pageLi = document.createElement('li');
+            pageLi.className = `page-item ${i === currentPage ? 'active' : ''}`;
+            pageLi.innerHTML = `<a class="page-link" href="#" data-page="${i}">${i}</a>`;
+            paginationControls.appendChild(pageLi);
+        } else if (i === currentPage - 2 || i === currentPage + 2) {
+            // Add ellipsis
+            const ellipsisLi = document.createElement('li');
+            ellipsisLi.className = 'page-item disabled';
+            ellipsisLi.innerHTML = '<span class="page-link">...</span>';
+            paginationControls.appendChild(ellipsisLi);
+        }
+    }
+    
+    // Next button
+    const nextLi = document.createElement('li');
+    nextLi.className = `page-item ${currentPage === totalPages ? 'disabled' : ''}`;
+    nextLi.innerHTML = `<a class="page-link" href="#" data-page="${currentPage + 1}">Next</a>`;
+    paginationControls.appendChild(nextLi);
+    
+    // Add click event listeners to pagination links
+    paginationControls.addEventListener('click', handlePaginationClick);
+}
+
+function handlePaginationClick(event) {
+    event.preventDefault();
+    
+    if (event.target.classList.contains('page-link')) {
+        const newPage = parseInt(event.target.dataset.page);
+        if (newPage && newPage !== currentPage) {
+            currentPage = newPage;
+            displayPortfolioItemsWithPagination();
+        }
     }
 }
 
