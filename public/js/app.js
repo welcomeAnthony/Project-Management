@@ -260,11 +260,11 @@ function displayPortfolioItems(items) {
             </td>
             <td>
                 <div class="btn-group btn-group-sm">
-                    <button class="btn btn-outline-primary edit-item-btn" data-item-id="${item.id}" title="Edit">
-                        <i class="fas fa-edit"></i>
+                    <button class="btn btn-outline-success buy-item-btn" data-item-id="${item.id}" title="Buy More">
+                        <i class="fas fa-plus"></i>
                     </button>
-                    <button class="btn btn-outline-danger delete-item-btn" data-item-id="${item.id}" title="Delete">
-                        <i class="fas fa-trash"></i>
+                    <button class="btn btn-outline-danger sell-item-btn" data-item-id="${item.id}" title="Sell">
+                        <i class="fas fa-minus"></i>
                     </button>
                 </div>
             </td>
@@ -692,110 +692,332 @@ async function addPortfolioItem() {
     }
 }
 
-// Item editing
-async function editItem(itemId) {
+// Buy/Sell functionality
+async function buyMoreShares(itemId) {
     try {
         const response = await api.getPortfolioItem(itemId);
         if (response.success) {
+            const item = response.data;
             currentEditItemId = itemId;
-            populateEditForm(response.data);
-            const modal = new bootstrap.Modal(document.getElementById('editItemModal'));
-            modal.show();
+            showBuyModal(item);
         }
     } catch (error) {
         showAlert(error.message, 'danger');
     }
 }
 
-function populateEditForm(item) {
+function showBuyModal(item) {
+    const modal = new bootstrap.Modal(document.getElementById('editItemModal'));
+    const modalTitle = document.querySelector('#editItemModal .modal-title');
     const form = document.getElementById('editItemForm');
+    
+    modalTitle.textContent = `Buy More - ${item.symbol}`;
+    
     form.innerHTML = `
-        <div class="row">
-            <div class="col-md-6 mb-3">
-                <label class="form-label">Symbol *</label>
-                <input type="text" class="form-control" id="editSymbol" value="${item.symbol}" required>
-            </div>
-            <div class="col-md-6 mb-3">
-                <label class="form-label">Name *</label>
-                <input type="text" class="form-control" id="editName" value="${item.name}" required>
-            </div>
+        <div class="alert alert-info">
+            <i class="fas fa-info-circle me-2"></i>
+            <strong>Current Position:</strong> ${item.quantity} shares at $${parseFloat(item.purchase_price).toFixed(2)} avg. cost
         </div>
         <div class="row">
             <div class="col-md-6 mb-3">
-                <label class="form-label">Type *</label>
-                <select class="form-select" id="editType" required>
-                    <option value="stock" ${item.type === 'stock' ? 'selected' : ''}>Stock</option>
-                    <option value="bond" ${item.type === 'bond' ? 'selected' : ''}>Bond</option>
-                    <option value="etf" ${item.type === 'etf' ? 'selected' : ''}>ETF</option>
-                    <option value="mutual_fund" ${item.type === 'mutual_fund' ? 'selected' : ''}>Mutual Fund</option>
-                    <option value="crypto" ${item.type === 'crypto' ? 'selected' : ''}>Cryptocurrency</option>
-                    <option value="cash" ${item.type === 'cash' ? 'selected' : ''}>Cash</option>
-                    <option value="other" ${item.type === 'other' ? 'selected' : ''}>Other</option>
-                </select>
+                <label class="form-label">Additional Quantity *</label>
+                <input type="number" class="form-control" id="buyQuantity" step="0.000001" required placeholder="Enter quantity to buy">
             </div>
             <div class="col-md-6 mb-3">
-                <label class="form-label">Sector</label>
-                <input type="text" class="form-control" id="editSector" value="${item.sector || ''}">
-            </div>
-        </div>
-        <div class="row">
-            <div class="col-md-4 mb-3">
-                <label class="form-label">Quantity *</label>
-                <input type="number" class="form-control" id="editQuantity" step="0.000001" value="${item.quantity}" required>
-            </div>
-            <div class="col-md-4 mb-3">
                 <label class="form-label">Purchase Price *</label>
-                <input type="number" class="form-control" id="editPurchasePrice" step="0.01" value="${item.purchase_price}" required>
-            </div>
-            <div class="col-md-4 mb-3">
-                <label class="form-label">Current Price</label>
-                <input type="number" class="form-control" id="editCurrentPrice" step="0.01" value="${item.current_price || ''}">
+                <input type="number" class="form-control" id="buyPrice" step="0.01" required value="${item.current_price || item.purchase_price}" placeholder="Enter purchase price">
             </div>
         </div>
         <div class="row">
             <div class="col-md-6 mb-3">
                 <label class="form-label">Purchase Date *</label>
-                <input type="date" class="form-control" id="editPurchaseDate" value="${formatDateForInput(item.purchase_date)}" required>
+                <input type="date" class="form-control" id="buyDate" required value="${new Date().toISOString().split('T')[0]}">
             </div>
             <div class="col-md-6 mb-3">
-                <label class="form-label">Currency</label>
-                <select class="form-select" id="editCurrency">
-                    <option value="USD" ${item.currency === 'USD' ? 'selected' : ''}>USD</option>
-                    <option value="EUR" ${item.currency === 'EUR' ? 'selected' : ''}>EUR</option>
-                    <option value="GBP" ${item.currency === 'GBP' ? 'selected' : ''}>GBP</option>
-                    <option value="JPY" ${item.currency === 'JPY' ? 'selected' : ''}>JPY</option>
-                    <option value="CAD" ${item.currency === 'CAD' ? 'selected' : ''}>CAD</option>
-                </select>
+                <label class="form-label">Current Price</label>
+                <input type="number" class="form-control" id="buyCurrentPrice" step="0.01" value="${item.current_price || ''}" placeholder="Optional: Update current price">
             </div>
         </div>
     `;
+    
+    // Update the submit button to handle buy logic
+    const submitBtn = document.getElementById('update-item-submit');
+    submitBtn.textContent = 'Buy Shares';
+    submitBtn.onclick = handleBuyShares;
+    
+    modal.show();
 }
 
-async function updateItem() {
-    if (!currentEditItemId) return;
+async function handleBuyShares() {
+    const buyQuantity = parseFloat(document.getElementById('buyQuantity').value);
+    const buyPrice = parseFloat(document.getElementById('buyPrice').value);
+    const buyDate = document.getElementById('buyDate').value;
+    const newCurrentPrice = document.getElementById('buyCurrentPrice').value;
     
-    const form = document.getElementById('editItemForm');
-    
-    const itemData = {
-        symbol: document.getElementById('editSymbol').value.toUpperCase(),
-        name: document.getElementById('editName').value,
-        type: document.getElementById('editType').value,
-        quantity: parseFloat(document.getElementById('editQuantity').value),
-        purchase_price: parseFloat(document.getElementById('editPurchasePrice').value),
-        current_price: document.getElementById('editCurrentPrice').value ? parseFloat(document.getElementById('editCurrentPrice').value) : null,
-        purchase_date: document.getElementById('editPurchaseDate').value,
-        sector: document.getElementById('editSector').value || null,
-        currency: document.getElementById('editCurrency').value
-    };
+    if (!buyQuantity || !buyPrice || !buyDate) {
+        showAlert('Please fill in all required fields', 'warning');
+        return;
+    }
     
     try {
-        const response = await api.updatePortfolioItem(currentEditItemId, itemData);
-        if (response.success) {
-            showAlert('Portfolio item updated successfully', 'success');
-            const modal = bootstrap.Modal.getInstance(document.getElementById('editItemModal'));
-            modal.hide();
-            
+        // Get current item data
+        const response = await api.getPortfolioItem(currentEditItemId);
+        if (!response.success) {
+            throw new Error('Failed to get current item data');
+        }
+        
+        const currentItem = response.data;
+        const currentQuantity = parseFloat(currentItem.quantity);
+        const currentAvgPrice = parseFloat(currentItem.purchase_price);
+        
+        // Calculate new weighted average purchase price
+        const totalValue = (currentQuantity * currentAvgPrice) + (buyQuantity * buyPrice);
+        const newTotalQuantity = currentQuantity + buyQuantity;
+        const newAvgPrice = totalValue / newTotalQuantity;
+        
+        // Prepare update data
+        const updateData = {
+            quantity: newTotalQuantity,
+            purchase_price: newAvgPrice,
+            purchase_date: buyDate // Use latest purchase date
+        };
+        
+        // Update current price if provided
+        if (newCurrentPrice) {
+            updateData.current_price = parseFloat(newCurrentPrice);
+        }
+        
+        const updateResponse = await api.updatePortfolioItem(currentEditItemId, updateData);
+        if (updateResponse.success) {
+            showAlert(`Successfully bought ${buyQuantity} more shares of ${currentItem.symbol}`, 'success');
+            bootstrap.Modal.getInstance(document.getElementById('editItemModal')).hide();
             await loadDashboard();
+        }
+    } catch (error) {
+        showAlert(error.message, 'danger');
+    }
+}
+
+async function sellShares(itemId) {
+    try {
+        const response = await api.getPortfolioItem(itemId);
+        if (response.success) {
+            const item = response.data;
+            currentEditItemId = itemId;
+            showSellModal(item);
+        }
+    } catch (error) {
+        showAlert(error.message, 'danger');
+    }
+}
+
+function showSellModal(item) {
+    const modal = new bootstrap.Modal(document.getElementById('editItemModal'));
+    const modalTitle = document.querySelector('#editItemModal .modal-title');
+    const form = document.getElementById('editItemForm');
+    
+    modalTitle.textContent = `Sell - ${item.symbol}`;
+    
+    const currentValue = parseFloat(item.quantity) * parseFloat(item.current_price || item.purchase_price);
+    
+    form.innerHTML = `
+        <div class="alert alert-warning">
+            <i class="fas fa-exclamation-triangle me-2"></i>
+            <strong>Current Position:</strong> ${item.quantity} shares worth $${currentValue.toFixed(2)}
+        </div>
+        <div class="row">
+            <div class="col-md-6 mb-3">
+                <label class="form-label">Quantity to Sell *</label>
+                <input type="number" class="form-control" id="sellQuantity" step="0.000001" required max="${item.quantity}" placeholder="Enter quantity to sell">
+                <small class="form-text text-muted">Maximum: ${item.quantity} shares</small>
+                <div class="invalid-feedback" id="quantityError" style="display: none;">
+                    You cannot sell more than ${item.quantity} shares
+                </div>
+            </div>
+            <div class="col-md-6 mb-3">
+                <label class="form-label">Sell Price *</label>
+                <input type="number" class="form-control" id="sellPrice" step="0.01" required value="${item.current_price || item.purchase_price}" placeholder="Enter sell price">
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-md-6 mb-3">
+                <label class="form-label">Sell Date *</label>
+                <input type="date" class="form-control" id="sellDate" required value="${new Date().toISOString().split('T')[0]}">
+            </div>
+            <div class="col-md-6 mb-3">
+                <div class="form-check mt-4">
+                    <input class="form-check-input" type="checkbox" id="sellAll" ${parseFloat(item.quantity) <= 1 ? 'checked' : ''}>
+                    <label class="form-check-label" for="sellAll">
+                        Sell entire position
+                    </label>
+                </div>
+            </div>
+        </div>
+        <div class="row" id="sellPreview" style="display: none;">
+            <div class="col-12">
+                <div class="alert alert-info">
+                    <h6>Transaction Preview:</h6>
+                    <div class="row">
+                        <div class="col-md-4">
+                            <strong>Selling:</strong> <span id="previewQuantity">0</span> shares
+                        </div>
+                        <div class="col-md-4">
+                            <strong>Total Value:</strong> $<span id="previewValue">0.00</span>
+                        </div>
+                        <div class="col-md-4">
+                            <strong>Remaining:</strong> <span id="previewRemaining">0</span> shares
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    // Add event listener for sell all checkbox
+    document.getElementById('sellAll').addEventListener('change', function() {
+        const sellQuantityInput = document.getElementById('sellQuantity');
+        if (this.checked) {
+            sellQuantityInput.value = item.quantity;
+            sellQuantityInput.readOnly = true;
+        } else {
+            sellQuantityInput.readOnly = false;
+            sellQuantityInput.value = '';
+        }
+        updateSellPreview(item);
+    });
+    
+    // Add real-time validation for quantity input
+    document.getElementById('sellQuantity').addEventListener('input', function() {
+        validateSellQuantity(item, this);
+        updateSellPreview(item);
+    });
+    
+    // Add event listener for price changes to update preview
+    document.getElementById('sellPrice').addEventListener('input', function() {
+        updateSellPreview(item);
+    });
+    
+    // Function to validate sell quantity
+    function validateSellQuantity(item, input) {
+        const sellQuantity = parseFloat(input.value);
+        const maxQuantity = parseFloat(item.quantity);
+        const quantityError = document.getElementById('quantityError');
+        const submitBtn = document.getElementById('update-item-submit');
+        
+        if (sellQuantity > maxQuantity) {
+            input.classList.add('is-invalid');
+            quantityError.style.display = 'block';
+            submitBtn.disabled = true;
+        } else {
+            input.classList.remove('is-invalid');
+            quantityError.style.display = 'none';
+            submitBtn.disabled = false;
+        }
+    }
+    
+    // Function to update sell preview
+    function updateSellPreview(item) {
+        const sellQuantity = parseFloat(document.getElementById('sellQuantity').value) || 0;
+        const sellPrice = parseFloat(document.getElementById('sellPrice').value) || 0;
+        const maxQuantity = parseFloat(item.quantity);
+        
+        if (sellQuantity > 0 && sellPrice > 0) {
+            const totalValue = sellQuantity * sellPrice;
+            const remainingShares = Math.max(0, maxQuantity - sellQuantity);
+            
+            document.getElementById('previewQuantity').textContent = sellQuantity.toFixed(6);
+            document.getElementById('previewValue').textContent = totalValue.toFixed(2);
+            document.getElementById('previewRemaining').textContent = remainingShares.toFixed(6);
+            document.getElementById('sellPreview').style.display = 'block';
+        } else {
+            document.getElementById('sellPreview').style.display = 'none';
+        }
+    }
+    
+    // Update the submit button to handle sell logic
+    const submitBtn = document.getElementById('update-item-submit');
+    submitBtn.textContent = 'Sell Shares';
+    submitBtn.onclick = handleSellShares;
+    
+    modal.show();
+}
+
+async function handleSellShares() {
+    const sellQuantity = parseFloat(document.getElementById('sellQuantity').value);
+    const sellPrice = parseFloat(document.getElementById('sellPrice').value);
+    const sellDate = document.getElementById('sellDate').value;
+    const sellAll = document.getElementById('sellAll').checked;
+    
+    // Validation
+    if (!sellQuantity || !sellPrice || !sellDate) {
+        showAlert('Please fill in all required fields', 'warning');
+        return;
+    }
+    
+    if (sellQuantity <= 0) {
+        showAlert('Sell quantity must be greater than 0', 'danger');
+        return;
+    }
+    
+    if (sellPrice <= 0) {
+        showAlert('Sell price must be greater than 0', 'danger');
+        return;
+    }
+    
+    try {
+        // Get current item data
+        const response = await api.getPortfolioItem(currentEditItemId);
+        if (!response.success) {
+            throw new Error('Failed to get current item data');
+        }
+        
+        const currentItem = response.data;
+        const currentQuantity = parseFloat(currentItem.quantity);
+        
+        // Enhanced validation with specific error messages
+        if (sellQuantity > currentQuantity) {
+            showAlert(`Cannot sell ${sellQuantity} shares. You only own ${currentQuantity} shares of ${currentItem.symbol}`, 'danger');
+            
+            // Highlight the invalid input
+            const sellQuantityInput = document.getElementById('sellQuantity');
+            sellQuantityInput.classList.add('is-invalid');
+            document.getElementById('quantityError').style.display = 'block';
+            return;
+        }
+        
+        // Confirmation dialog with detailed information
+        const totalSellValue = sellQuantity * sellPrice;
+        const remainingShares = currentQuantity - sellQuantity;
+        const confirmMessage = sellAll || sellQuantity >= currentQuantity 
+            ? `Are you sure you want to sell ALL ${currentQuantity} shares of ${currentItem.symbol} for $${totalSellValue.toFixed(2)}? This will completely remove this position from your portfolio.`
+            : `Are you sure you want to sell ${sellQuantity} shares of ${currentItem.symbol} for $${totalSellValue.toFixed(2)}? You will have ${remainingShares.toFixed(6)} shares remaining.`;
+            
+        if (!confirm(confirmMessage)) {
+            return;
+        }
+        
+        if (sellAll || sellQuantity >= currentQuantity) {
+            // Delete the entire position
+            const deleteResponse = await api.deletePortfolioItem(currentEditItemId);
+            if (deleteResponse.success) {
+                showAlert(`Successfully sold all ${currentQuantity} shares of ${currentItem.symbol} for $${totalSellValue.toFixed(2)}`, 'success');
+                bootstrap.Modal.getInstance(document.getElementById('editItemModal')).hide();
+                await loadDashboard();
+            }
+        } else {
+            // Reduce quantity
+            const newQuantity = currentQuantity - sellQuantity;
+            const updateData = {
+                quantity: newQuantity,
+                current_price: sellPrice // Update current price with sell price
+            };
+            
+            const updateResponse = await api.updatePortfolioItem(currentEditItemId, updateData);
+            if (updateResponse.success) {
+                showAlert(`Successfully sold ${sellQuantity} shares of ${currentItem.symbol} for $${totalSellValue.toFixed(2)}. ${newQuantity.toFixed(6)} shares remaining.`, 'success');
+                bootstrap.Modal.getInstance(document.getElementById('editItemModal')).hide();
+                await loadDashboard();
+            }
         }
     } catch (error) {
         showAlert(error.message, 'danger');
@@ -848,10 +1070,6 @@ function setupEventListeners() {
     });
     
     // Update item form submit
-    document.getElementById('update-item-submit').addEventListener('click', function() {
-        updateItem();
-    });
-    
     // Add item form submission
     document.getElementById('addItemForm').addEventListener('submit', function(e) {
         e.preventDefault();
@@ -881,16 +1099,16 @@ function setupEventListeners() {
     
     // Event delegation for dynamically created buttons
     document.addEventListener('click', function(e) {
-        // Edit item button
-        if (e.target.closest('.edit-item-btn')) {
-            const itemId = e.target.closest('.edit-item-btn').dataset.itemId;
-            editItem(parseInt(itemId));
+        // Buy more button
+        if (e.target.closest('.buy-item-btn')) {
+            const itemId = e.target.closest('.buy-item-btn').dataset.itemId;
+            buyMoreShares(parseInt(itemId));
         }
         
-        // Delete item button
-        if (e.target.closest('.delete-item-btn')) {
-            const itemId = e.target.closest('.delete-item-btn').dataset.itemId;
-            deleteItem(parseInt(itemId));
+        // Sell button
+        if (e.target.closest('.sell-item-btn')) {
+            const itemId = e.target.closest('.sell-item-btn').dataset.itemId;
+            sellShares(parseInt(itemId));
         }
         
         // Edit portfolio button
