@@ -35,12 +35,6 @@ function showSection(sectionName) {
         section.style.display = 'block';
     }
     
-    // Update navbar
-    document.querySelectorAll('.nav-link').forEach(link => {
-        link.classList.remove('active');
-    });
-    event?.target?.classList.add('active');
-    
     // Load section-specific data
     switch (sectionName) {
         case 'dashboard':
@@ -145,10 +139,10 @@ function displayPortfolioItems(items) {
             </td>
             <td>
                 <div class="btn-group btn-group-sm">
-                    <button class="btn btn-outline-primary" onclick="editItem(${item.id})" title="Edit">
+                    <button class="btn btn-outline-primary edit-item-btn" data-item-id="${item.id}" title="Edit">
                         <i class="fas fa-edit"></i>
                     </button>
-                    <button class="btn btn-outline-danger" onclick="deleteItem(${item.id})" title="Delete">
+                    <button class="btn btn-outline-danger delete-item-btn" data-item-id="${item.id}" title="Delete">
                         <i class="fas fa-trash"></i>
                     </button>
                 </div>
@@ -372,10 +366,10 @@ function displayPortfolioDetails(portfolio) {
             </div>
         </div>
         <div class="mt-3">
-            <button class="btn btn-sm btn-outline-primary me-2" onclick="editPortfolio(${portfolio.id})">
+            <button class="btn btn-sm btn-outline-primary me-2 edit-portfolio-btn" data-portfolio-id="${portfolio.id}">
                 <i class="fas fa-edit me-1"></i>Edit
             </button>
-            <button class="btn btn-sm btn-outline-danger" onclick="confirmDeletePortfolio(${portfolio.id})">
+            <button class="btn btn-sm btn-outline-danger delete-portfolio-btn" data-portfolio-id="${portfolio.id}">
                 <i class="fas fa-trash me-1"></i>Delete
             </button>
         </div>
@@ -418,6 +412,41 @@ async function createPortfolio() {
             
             await loadPortfolios();
             await loadPortfoliosSection();
+        }
+    } catch (error) {
+        showAlert(error.message, 'danger');
+    }
+}
+
+// Portfolio edit and delete functions
+async function editPortfolio(portfolioId) {
+    try {
+        // For now, show an alert - you can implement a modal later
+        const portfolioName = prompt('Enter new portfolio name:');
+        if (portfolioName && portfolioName.trim()) {
+            await api.updatePortfolio(portfolioId, { 
+                name: portfolioName.trim(),
+                description: `Updated portfolio: ${portfolioName.trim()}`
+            });
+            showAlert('Portfolio updated successfully', 'success');
+            await loadPortfoliosSection();
+        }
+    } catch (error) {
+        showAlert(error.message, 'danger');
+    }
+}
+
+async function confirmDeletePortfolio(portfolioId) {
+    try {
+        if (confirm('Are you sure you want to delete this portfolio? This action cannot be undone.')) {
+            await api.deletePortfolio(portfolioId);
+            showAlert('Portfolio deleted successfully', 'success');
+            await loadPortfoliosSection();
+            // If this was the current portfolio, reset to default
+            if (currentPortfolio && currentPortfolio.id === portfolioId) {
+                await loadDefaultPortfolio();
+                await loadDashboard();
+            }
         }
     } catch (error) {
         showAlert(error.message, 'danger');
@@ -609,6 +638,40 @@ async function deleteItem(itemId) {
 
 // Event listeners
 function setupEventListeners() {
+    // Navigation event listeners
+    document.getElementById('nav-dashboard').addEventListener('click', function(e) {
+        e.preventDefault();
+        showSection('dashboard');
+        updateNavigation(this);
+    });
+    
+    document.getElementById('nav-portfolios').addEventListener('click', function(e) {
+        e.preventDefault();
+        showSection('portfolios');
+        updateNavigation(this);
+    });
+    
+    document.getElementById('nav-add-item').addEventListener('click', function(e) {
+        e.preventDefault();
+        showSection('add-item');
+        updateNavigation(this);
+    });
+    
+    // Create portfolio button
+    document.getElementById('create-portfolio-btn').addEventListener('click', function() {
+        showCreatePortfolioModal();
+    });
+    
+    // Create portfolio form submit
+    document.getElementById('create-portfolio-submit').addEventListener('click', function() {
+        createPortfolio();
+    });
+    
+    // Update item form submit
+    document.getElementById('update-item-submit').addEventListener('click', function() {
+        updateItem();
+    });
+    
     // Add item form submission
     document.getElementById('addItemForm').addEventListener('submit', function(e) {
         e.preventDefault();
@@ -627,6 +690,41 @@ function setupEventListeners() {
     document.getElementById('symbol').addEventListener('input', function() {
         this.value = this.value.toUpperCase();
     });
+    
+    // Event delegation for dynamically created buttons
+    document.addEventListener('click', function(e) {
+        // Edit item button
+        if (e.target.closest('.edit-item-btn')) {
+            const itemId = e.target.closest('.edit-item-btn').dataset.itemId;
+            editItem(parseInt(itemId));
+        }
+        
+        // Delete item button
+        if (e.target.closest('.delete-item-btn')) {
+            const itemId = e.target.closest('.delete-item-btn').dataset.itemId;
+            deleteItem(parseInt(itemId));
+        }
+        
+        // Edit portfolio button
+        if (e.target.closest('.edit-portfolio-btn')) {
+            const portfolioId = e.target.closest('.edit-portfolio-btn').dataset.portfolioId;
+            editPortfolio(parseInt(portfolioId));
+        }
+        
+        // Delete portfolio button
+        if (e.target.closest('.delete-portfolio-btn')) {
+            const portfolioId = e.target.closest('.delete-portfolio-btn').dataset.portfolioId;
+            confirmDeletePortfolio(parseInt(portfolioId));
+        }
+    });
+}
+
+// Helper function to update navigation active state
+function updateNavigation(activeLink) {
+    document.querySelectorAll('.nav-link').forEach(link => {
+        link.classList.remove('active');
+    });
+    activeLink.classList.add('active');
 }
 
 // Utility function to refresh all data

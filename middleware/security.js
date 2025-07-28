@@ -23,6 +23,7 @@ const securityHeaders = helmet({
       defaultSrc: ["'self'"],
       styleSrc: ["'self'", "'unsafe-inline'", "https://cdnjs.cloudflare.com"],
       scriptSrc: ["'self'", "https://cdnjs.cloudflare.com"],
+      scriptSrcAttr: ["'none'"],
       imgSrc: ["'self'", "data:", "https:"],
       connectSrc: ["'self'"],
       fontSrc: ["'self'", "https://cdnjs.cloudflare.com"],
