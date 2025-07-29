@@ -120,6 +120,41 @@ async function createDatabase() {
       )
     `);
 
+    // Create top_stocks table for storing daily top 10 stocks data
+    await dbConnection.execute(`
+      CREATE TABLE IF NOT EXISTS top_stocks (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        symbol VARCHAR(20) NOT NULL,
+        name VARCHAR(255) NOT NULL,
+        date DATE NOT NULL,
+        open_price DECIMAL(15, 4),
+        close_price DECIMAL(15, 4),
+        high_price DECIMAL(15, 4),
+        low_price DECIMAL(15, 4),
+        volume BIGINT,
+        market_cap DECIMAL(20, 2),
+        pe_ratio DECIMAL(10, 2),
+        dividend_yield DECIMAL(5, 4),
+        fifty_two_week_high DECIMAL(15, 4),
+        fifty_two_week_low DECIMAL(15, 4),
+        avg_volume BIGINT,
+        beta DECIMAL(8, 4),
+        eps DECIMAL(10, 4),
+        sector VARCHAR(100),
+        industry VARCHAR(100),
+        currency VARCHAR(3) DEFAULT 'USD',
+        exchange VARCHAR(50),
+        rank_position TINYINT NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        UNIQUE KEY unique_symbol_date (symbol, date),
+        INDEX idx_date (date),
+        INDEX idx_symbol (symbol),
+        INDEX idx_rank (rank_position),
+        INDEX idx_sector (sector)
+      )
+    `);
+
     // Insert sample data
     console.log('Inserting sample data...');
     
@@ -186,6 +221,17 @@ async function createDatabase() {
     }
 
     console.log('Database migration completed successfully!');
+    
+    // Fix any existing transactions with null or empty asset_name
+    console.log('Fixing any existing transactions with missing asset names...');
+    await dbConnection.execute(`
+      UPDATE transactions 
+      SET asset_name = symbol 
+      WHERE asset_name IS NULL OR asset_name = '' OR TRIM(asset_name) = ''
+    `);
+    
+    console.log('Asset name cleanup completed!');
+    
     await dbConnection.end();
   } catch (error) {
     console.error('Migration failed:', error);

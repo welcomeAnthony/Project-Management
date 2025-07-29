@@ -31,7 +31,8 @@
     "mysql2": "^3.6.0",
     "node-cron": "^4.2.1",
     "swagger-jsdoc": "^6.2.8",
-    "swagger-ui-express": "^5.0.0"
+    "swagger-ui-express": "^5.0.0",
+    "yahoo-finance2": "^2.13.3"
   },
   "devDependencies": {
     "axios": "^1.11.0",
