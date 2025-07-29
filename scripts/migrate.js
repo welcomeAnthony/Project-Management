@@ -91,6 +91,35 @@ async function createDatabase() {
       )
     `);
 
+    // Create transactions table for recording all portfolio transactions
+    await dbConnection.execute(`
+      CREATE TABLE IF NOT EXISTS transactions (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        portfolio_id INT NOT NULL,
+        portfolio_item_id INT,
+        transaction_type ENUM('buy', 'sell', 'dividend', 'split', 'transfer', 'fee', 'deposit', 'withdrawal') NOT NULL,
+        symbol VARCHAR(20) NOT NULL,
+        asset_name VARCHAR(255) NOT NULL,
+        quantity DECIMAL(15, 6) NOT NULL,
+        price_per_unit DECIMAL(15, 2) NOT NULL,
+        total_amount DECIMAL(15, 2) NOT NULL,
+        fees DECIMAL(15, 2) DEFAULT 0.00,
+        transaction_date DATE NOT NULL,
+        description TEXT,
+        reference_number VARCHAR(100),
+        status ENUM('pending', 'completed', 'cancelled') DEFAULT 'completed',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        FOREIGN KEY (portfolio_id) REFERENCES portfolios(id) ON DELETE CASCADE,
+        FOREIGN KEY (portfolio_item_id) REFERENCES portfolio_items(id) ON DELETE SET NULL,
+        INDEX idx_portfolio_id (portfolio_id),
+        INDEX idx_symbol (symbol),
+        INDEX idx_transaction_type (transaction_type),
+        INDEX idx_transaction_date (transaction_date),
+        INDEX idx_status (status)
+      )
+    `);
+
     // Insert sample data
     console.log('Inserting sample data...');
     
