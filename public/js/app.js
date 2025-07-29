@@ -1002,6 +1002,32 @@ async function handleBuyShares() {
             updateData.current_price = parseFloat(newCurrentPrice);
         }
         
+        // First create the transaction record
+        const transactionData = {
+            portfolio_id: parseInt(currentItem.portfolio_id),
+            transaction_type: 'buy',
+            symbol: currentItem.symbol,
+            asset_name: currentItem.name,
+            quantity: buyQuantity,
+            price_per_unit: buyPrice,
+            total_amount: buyQuantity * buyPrice,
+            fees: 0,
+            transaction_date: buyDate,
+            description: `Additional purchase of ${currentItem.name} (${currentItem.symbol})`,
+            status: 'completed'
+        };
+        
+        const transactionResponse = await fetch('/api/transactions', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(transactionData)
+        });
+        
+        if (!transactionResponse.ok) {
+            throw new Error('Failed to create transaction record');
+        }
+        
+        // Then update the portfolio item
         const updateResponse = await api.updatePortfolioItem(currentEditItemId, updateData);
         if (updateResponse.success) {
             showAlert(`Successfully bought ${buyQuantity} more shares of ${currentItem.symbol}`, 'success');
@@ -1212,6 +1238,31 @@ async function handleSellShares() {
         }
         
         if (sellAll || sellQuantity >= currentQuantity) {
+            // Create sell transaction record for the entire position
+            const transactionData = {
+                portfolio_id: parseInt(currentItem.portfolio_id),
+                transaction_type: 'sell',
+                symbol: currentItem.symbol,
+                asset_name: currentItem.name,
+                quantity: currentQuantity, // Use actual quantity being sold
+                price_per_unit: sellPrice,
+                total_amount: currentQuantity * sellPrice,
+                fees: 0,
+                transaction_date: sellDate,
+                description: `Complete sale of ${currentItem.name} (${currentItem.symbol})`,
+                status: 'completed'
+            };
+            
+            const transactionResponse = await fetch('/api/transactions', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(transactionData)
+            });
+            
+            if (!transactionResponse.ok) {
+                throw new Error('Failed to create transaction record');
+            }
+            
             // Delete the entire position
             const deleteResponse = await api.deletePortfolioItem(currentEditItemId);
             if (deleteResponse.success) {
@@ -1220,6 +1271,31 @@ async function handleSellShares() {
                 await loadDashboard();
             }
         } else {
+            // Create sell transaction record for partial sale
+            const transactionData = {
+                portfolio_id: parseInt(currentItem.portfolio_id),
+                transaction_type: 'sell',
+                symbol: currentItem.symbol,
+                asset_name: currentItem.name,
+                quantity: sellQuantity,
+                price_per_unit: sellPrice,
+                total_amount: sellQuantity * sellPrice,
+                fees: 0,
+                transaction_date: sellDate,
+                description: `Partial sale of ${currentItem.name} (${currentItem.symbol})`,
+                status: 'completed'
+            };
+            
+            const transactionResponse = await fetch('/api/transactions', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(transactionData)
+            });
+            
+            if (!transactionResponse.ok) {
+                throw new Error('Failed to create transaction record');
+            }
+            
             // Reduce quantity
             const newQuantity = currentQuantity - sellQuantity;
             const updateData = {
@@ -1405,3 +1481,161 @@ document.getElementById('portfolioSearchInput').addEventListener('keydown', func
         document.getElementById('portfolioSearchBtn').click();
     }
 });
+
+
+
+// portfolioListSearch
+let allPortfolios = [];
+async function loadPortfoliosSection() {
+    try {
+        const response = await api.getPortfolios();
+        if (response.success) {
+            allPortfolios = response.data;
+            renderPortfolioList(allPortfolios);
+        }
+    } catch (error) {
+        console.error('Failed to load portfolios section:', error);
+    }
+}
+
+function renderPortfolioList(portfolios) {
+    displayPortfoliosList(portfolios);
+}
+
+document.getElementById('portfolioListSearchBtn').addEventListener('click', function() {
+    const query = document.getElementById('portfolioListSearchInput').value.trim().toLowerCase();
+    if (!query) {
+        renderPortfolioList(allPortfolios);
+        return;
+    }
+    const filtered = allPortfolios.filter(p =>
+        p.name && p.name.toLowerCase().includes(query)
+    );
+    renderPortfolioList(filtered);
+});
+
+// enter search
+document.getElementById('portfolioListSearchInput').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') {
+        document.getElementById('portfolioListSearchBtn').click();
+    }
+});
+// new here
+
+// My Portfolios splite page
+const myPortfoliosPerPage = 6;
+let myPortfoliosCurrentPage = 1;
+
+function renderPortfolioList(portfolios) {
+    const total = portfolios.length;
+    const totalPages = Math.ceil(total / myPortfoliosPerPage);
+
+    if (myPortfoliosCurrentPage > totalPages && totalPages > 0) {
+        myPortfoliosCurrentPage = totalPages;
+    } else if (myPortfoliosCurrentPage < 1) {
+        myPortfoliosCurrentPage = 1;
+    }
+
+    const start = (myPortfoliosCurrentPage - 1) * myPortfoliosPerPage;
+    const end = Math.min(start + myPortfoliosPerPage, total);
+    const pageData = portfolios.slice(start, end);
+
+    displayPortfoliosList(pageData);
+
+    const info = document.getElementById('portfolioPaginationInfo');
+    if (info) {
+        if (total === 0) {
+            info.textContent = `Showing 0 - 0 of 0 items`;
+        } else {
+            info.textContent = `Showing ${start + 1} - ${end} of ${total} items`;
+        }
+    }
+
+    renderPortfolioPaginationControls(totalPages);
+}
+
+function renderPortfolioPaginationControls(totalPages) {
+    const container = document.getElementById('portfolioPaginationContainer');
+    const controls = document.getElementById('portfolioPaginationControls');
+    if (!container || !controls) return;
+
+    if (totalPages <= 1) {
+        container.style.display = 'none';
+        return;
+    }
+    container.style.display = '';
+
+    controls.innerHTML = '';
+
+
+    const prevLi = document.createElement('li');
+    prevLi.className = `page-item ${myPortfoliosCurrentPage === 1 ? 'disabled' : ''}`;
+    prevLi.innerHTML = `<a class="page-link" href="#" data-page="${myPortfoliosCurrentPage - 1}">Previous</a>`;
+    controls.appendChild(prevLi);
+
+
+    for (let i = 1; i <= totalPages; i++) {
+        if (i === 1 || i === totalPages || (i >= myPortfoliosCurrentPage - 1 && i <= myPortfoliosCurrentPage + 1)) {
+            const pageLi = document.createElement('li');
+            pageLi.className = `page-item ${i === myPortfoliosCurrentPage ? 'active' : ''}`;
+            pageLi.innerHTML = `<a class="page-link" href="#" data-page="${i}">${i}</a>`;
+            controls.appendChild(pageLi);
+        } else if (i === myPortfoliosCurrentPage - 2 || i === myPortfoliosCurrentPage + 2) {
+            const ellipsisLi = document.createElement('li');
+            ellipsisLi.className = 'page-item disabled';
+            ellipsisLi.innerHTML = '<span class="page-link">...</span>';
+            controls.appendChild(ellipsisLi);
+        }
+    }
+
+
+    const nextLi = document.createElement('li');
+    nextLi.className = `page-item ${myPortfoliosCurrentPage === totalPages ? 'disabled' : ''}`;
+    nextLi.innerHTML = `<a class="page-link" href="#" data-page="${myPortfoliosCurrentPage + 1}">Next</a>`;
+    controls.appendChild(nextLi);
+
+
+    controls.onclick = function(e) {
+        e.preventDefault();
+        if (e.target.classList.contains('page-link')) {
+            const page = parseInt(e.target.dataset.page);
+            if (page && page !== myPortfoliosCurrentPage && page >= 1 && page <= totalPages) {
+                myPortfoliosCurrentPage = page;
+                renderPortfolioList(allPortfolios);
+            }
+        }
+    };
+}
+
+document.getElementById('portfolioListSearchBtn').addEventListener('click', function() {
+    myPortfoliosCurrentPage = 1;
+    const query = document.getElementById('portfolioListSearchInput').value.trim().toLowerCase();
+    if (!query) {
+        renderPortfolioList(allPortfolios);
+        return;
+    }
+    const filtered = allPortfolios.filter(p =>
+        p.name && p.name.toLowerCase().includes(query)
+    );
+    renderPortfolioList(filtered);
+});
+document.getElementById('portfolioListSearchInput').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') {
+        myPortfoliosCurrentPage = 1;
+        document.getElementById('portfolioListSearchBtn').click();
+    }
+});
+
+async function loadPortfoliosSection() {
+    try {
+        const response = await api.getPortfolios();
+        if (response.success) {
+            allPortfolios = response.data;
+            myPortfoliosCurrentPage = 1;
+            renderPortfolioList(allPortfolios);
+        }
+    } catch (error) {
+        console.error('Failed to load portfolios section:', error);
+    }
+}
+

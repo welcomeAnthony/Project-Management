@@ -90,7 +90,7 @@ class ThemeManager {
         }
     }
 
-    // Method to manually set theme (useful for admin page or other contexts)
+    // Method to manually set theme
     setTheme(theme) {
         if (theme === 'light' || theme === 'dark') {
             this.applyTheme(theme);
