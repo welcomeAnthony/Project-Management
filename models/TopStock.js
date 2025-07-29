@@ -205,6 +205,17 @@ class TopStock {
     }
   }
 
+  // Get all available symbols
+  static async getAvailableSymbols() {
+    const [rows] = await pool.execute(`
+      SELECT DISTINCT symbol, name, rank_position
+      FROM top_stocks 
+      WHERE date = (SELECT MAX(date) FROM top_stocks)
+      ORDER BY rank_position ASC
+    `);
+    return rows;
+  }
+
   // Get all available sectors
   static async getSectors() {
     const [rows] = await pool.execute(`

@@ -162,6 +162,97 @@ router.get('/latest', TopStockController.getLatestTopStocks);
 
 /**
  * @swagger
+ * /api/top-stocks/symbols:
+ *   get:
+ *     summary: Get all available stock symbols
+ *     tags: [TopStocks]
+ *     responses:
+ *       200:
+ *         description: Available symbols retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 count:
+ *                   type: integer
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       symbol:
+ *                         type: string
+ *                       name:
+ *                         type: string
+ *                       rank_position:
+ *                         type: integer
+ */
+router.get('/symbols', TopStockController.getAvailableSymbols);
+
+/**
+ * @swagger
+ * /api/top-stocks/chart/{symbol}:
+ *   get:
+ *     summary: Get chart data for a specific stock
+ *     tags: [TopStocks]
+ *     parameters:
+ *       - in: path
+ *         name: symbol
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Stock symbol
+ *       - in: query
+ *         name: attribute
+ *         schema:
+ *           type: string
+ *           enum: [close_price, open_price, high_price, low_price, volume]
+ *           default: close_price
+ *         description: Attribute to chart
+ *       - in: query
+ *         name: days
+ *         schema:
+ *           type: integer
+ *           default: 30
+ *         description: Number of days to include
+ *     responses:
+ *       200:
+ *         description: Chart data retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 symbol:
+ *                   type: string
+ *                 attribute:
+ *                   type: string
+ *                 period:
+ *                   type: string
+ *                 count:
+ *                   type: integer
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       date:
+ *                         type: string
+ *                         format: date
+ *                       value:
+ *                         type: number
+ *                       volume:
+ *                         type: integer
+ */
+router.get('/chart/:symbol', TopStockController.getChartData);
+
+/**
+ * @swagger
  * /api/top-stocks/fetch:
  *   post:
  *     summary: Fetch and update top stocks data from Yahoo Finance
@@ -193,6 +284,43 @@ router.get('/latest', TopStockController.getLatestTopStocks);
  *         description: Server error
  */
 router.post('/fetch', TopStockController.fetchAndUpdateTopStocks);
+
+/**
+ * @swagger
+ * /api/top-stocks/fetch-historical:
+ *   post:
+ *     summary: Fetch historical top stocks data for the past 30 days
+ *     tags: [TopStocks]
+ *     responses:
+ *       200:
+ *         description: Historical top stocks data fetched successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 message:
+ *                   type: string
+ *                 period:
+ *                   type: string
+ *                 totalRecords:
+ *                   type: integer
+ *                 successfulSymbols:
+ *                   type: integer
+ *                 failedSymbols:
+ *                   type: integer
+ *                 jsonFile:
+ *                   type: string
+ *                 symbols:
+ *                   type: array
+ *                   items:
+ *                     type: string
+ *       500:
+ *         description: Server error
+ */
+router.post('/fetch-historical', TopStockController.fetchHistoricalTopStocks);
 
 /**
  * @swagger
