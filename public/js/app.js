@@ -4,7 +4,6 @@ let currentPortfolio = null;
 let performanceChart = null;
 let allocationChart = null;
 let currentEditItemId = null;
-let currentEditPortfolioId = null;
 
 // Application initialization
 document.addEventListener('DOMContentLoaded', function() {
@@ -16,7 +15,6 @@ async function initializeApp() {
         await loadPortfolios();
         await loadDefaultPortfolio();
         setupEventListeners();
-        setupThemeIntegration();
         showSection('dashboard');
     } catch (error) {
         console.error('Failed to initialize app:', error);
@@ -78,39 +76,14 @@ async function loadDefaultPortfolio() {
             if (dashboardSelect && currentPortfolio) {
                 dashboardSelect.value = currentPortfolio.id;
             }
-        } else {
-            // No portfolios available
-            currentPortfolio = null;
-            
-            // Clear dashboard portfolio selector
-            const dashboardSelect = document.getElementById('dashboardPortfolioSelect');
-            if (dashboardSelect) {
-                dashboardSelect.value = '';
-            }
         }
     } catch (error) {
         console.error('Failed to load default portfolio:', error);
-        currentPortfolio = null;
     }
 }
 
 async function loadPortfolioSummary() {
-    if (!currentPortfolio) {
-        // Clear dashboard when no portfolio selected
-        document.getElementById('totalValue').textContent = '$0.00';
-        document.getElementById('totalGain').textContent = '$0.00';
-        document.getElementById('totalItems').textContent = '0';
-        document.getElementById('gainPercent').textContent = '0.00%';
-        
-        // Reset gain/loss card colors
-        const gainCard = document.getElementById('gainLossCard');
-        const percentCard = document.getElementById('percentCard');
-        gainCard.classList.remove('positive', 'negative', 'neutral');
-        percentCard.classList.remove('positive', 'negative', 'neutral');
-        gainCard.classList.add('neutral');
-        percentCard.classList.add('neutral');
-        return;
-    }
+    if (!currentPortfolio) return;
     
     try {
         const response = await api.getPortfolioSummary(currentPortfolio.id);
@@ -144,11 +117,6 @@ async function loadPortfolioSummary() {
         }
     } catch (error) {
         console.error('Failed to load portfolio summary:', error);
-        // Clear dashboard on error
-        document.getElementById('totalValue').textContent = '$0.00';
-        document.getElementById('totalGain').textContent = '$0.00';
-        document.getElementById('totalItems').textContent = '0';
-        document.getElementById('gainPercent').textContent = '0.00%';
     }
 }
 
@@ -538,40 +506,12 @@ async function loadPerformanceChart() {
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
-
                     interaction: {
                         mode: 'index',
                         intersect: false
-
-                    scales: {
-                        x: {
-                            ticks: {
-                                color: document.documentElement.getAttribute('data-theme') === 'dark' ? '#ffffff' : '#212529'
-                            },
-                            grid: {
-                                color: document.documentElement.getAttribute('data-theme') === 'dark' ? '#495057' : '#dee2e6'
-                            }
-                        },
-                        y: {
-                            beginAtZero: false,
-                            ticks: {
-                                color: document.documentElement.getAttribute('data-theme') === 'dark' ? '#ffffff' : '#212529',
-                                callback: function(value) {
-                                    return formatCurrency(value);
-                                }
-                            },
-                            grid: {
-                                color: document.documentElement.getAttribute('data-theme') === 'dark' ? '#495057' : '#dee2e6'
-                            }
-                        }
                     },
                     scales: scales,
                     plugins: {
-                        legend: {
-                            labels: {
-                                color: document.documentElement.getAttribute('data-theme') === 'dark' ? '#ffffff' : '#212529'
-                            }
-                        },
                         tooltip: {
                             callbacks: {
                                 label: function(context) {
@@ -635,10 +575,7 @@ async function loadAllocationChart() {
                     maintainAspectRatio: false,
                     plugins: {
                         legend: {
-                            position: 'bottom',
-                            labels: {
-                                color: document.documentElement.getAttribute('data-theme') === 'dark' ? '#ffffff' : '#212529'
-                            }
+                            position: 'bottom'
                         },
                         tooltip: {
                             callbacks: {
@@ -675,58 +612,32 @@ function updatePortfolioSelect(portfolios) {
     const select = document.getElementById('portfolioSelect');
     select.innerHTML = '<option value="">Select Portfolio</option>';
     
-    // Update the Dashboard portfolio selector
-    const dashboardSelect = document.getElementById('dashboardPortfolioSelect');
-    if (dashboardSelect) {
-        dashboardSelect.innerHTML = '<option value="">Select Portfolio...</option>';
-    }
-    
-    // If no portfolios exist, show appropriate message
-    if (!portfolios || portfolios.length === 0) {
-        const noPortfolioOption = document.createElement('option');
-        noPortfolioOption.value = '';
-        noPortfolioOption.textContent = 'No portfolios available';
-        noPortfolioOption.disabled = true;
-        select.appendChild(noPortfolioOption);
-        
-        if (dashboardSelect) {
-            const noDashboardOption = document.createElement('option');
-            noDashboardOption.value = '';
-            noDashboardOption.textContent = 'No portfolios available';
-            noDashboardOption.disabled = true;
-            dashboardSelect.appendChild(noDashboardOption);
-        }
-        return;
-    }
-    
     portfolios.forEach(portfolio => {
-        // Add to Add Item form selector
         const option = document.createElement('option');
         option.value = portfolio.id;
         option.textContent = portfolio.name;
         select.appendChild(option);
-        
-        // Add to Dashboard selector
-        if (dashboardSelect) {
-            const dashOption = document.createElement('option');
-            dashOption.value = portfolio.id;
-            dashOption.textContent = portfolio.name;
-            if (currentPortfolio && portfolio.id === currentPortfolio.id) {
-                dashOption.selected = true;
-            }
-            dashboardSelect.appendChild(dashOption);
-        }
     });
+    
+    // Update the Dashboard portfolio selector
+    const dashboardSelect = document.getElementById('dashboardPortfolioSelect');
+    if (dashboardSelect) {
+        dashboardSelect.innerHTML = '<option value="">Select Portfolio...</option>';
+        
+        portfolios.forEach(portfolio => {
+            const option = document.createElement('option');
+            option.value = portfolio.id;
+            option.textContent = portfolio.name;
+            if (currentPortfolio && portfolio.id === currentPortfolio.id) {
+                option.selected = true;
+            }
+            dashboardSelect.appendChild(option);
+        });
+    }
 }
 
 async function loadPortfoliosSection() {
     try {
-        // Initialize portfolio details section
-        const portfolioDetailsContainer = document.getElementById('portfolioDetails');
-        if (portfolioDetailsContainer) {
-            portfolioDetailsContainer.innerHTML = '<p class="text-muted">Select a portfolio to view details</p>';
-        }
-        
         const response = await api.getPortfolios();
         if (response.success) {
             displayPortfoliosList(response.data);
@@ -755,21 +666,7 @@ async function switchToPortfolio(portfolioId) {
 
 function displayPortfoliosList(portfolios) {
     const container = document.getElementById('portfoliosList');
-    const portfolioDetailsContainer = document.getElementById('portfolioDetails');
     container.innerHTML = '';
-    
-    // If no portfolios exist, show message and clear details
-    if (!portfolios || portfolios.length === 0) {
-        container.innerHTML = `
-            <div class="text-center py-5">
-                <i class="fas fa-folder-open fa-3x text-muted mb-3"></i>
-                <h5 class="text-muted">No Portfolios Found</h5>
-                <p class="text-muted">Create your first portfolio to get started</p>
-            </div>
-        `;
-        portfolioDetailsContainer.innerHTML = '<p class="text-muted">No portfolio selected</p>';
-        return;
-    }
     
     portfolios.forEach(portfolio => {
         const card = document.createElement('div');
@@ -896,78 +793,14 @@ async function createPortfolio() {
 // Portfolio edit and delete functions
 async function editPortfolio(portfolioId) {
     try {
-        // Get the portfolio details first
-        const portfolioResponse = await api.getPortfolio(portfolioId);
-        if (!portfolioResponse.success) {
-            showAlert('Failed to get portfolio details', 'danger');
-            return;
-        }
-        
-        const portfolio = portfolioResponse.data;
-        currentEditPortfolioId = portfolioId;
-        
-        // Show the edit modal with current data
-        showEditPortfolioModal(portfolio);
-    } catch (error) {
-        showAlert(error.message, 'danger');
-    }
-}
-
-function showEditPortfolioModal(portfolio) {
-    const modal = new bootstrap.Modal(document.getElementById('editPortfolioModal'));
-    const form = document.getElementById('editPortfolioForm');
-    
-    // Populate the form with current data
-    document.getElementById('editPortfolioName').value = portfolio.name;
-    document.getElementById('editPortfolioDescription').value = portfolio.description || '';
-    
-    // Clear any previous validation
-    clearFormValidation(form);
-    
-    modal.show();
-}
-
-async function updatePortfolio() {
-    const form = document.getElementById('editPortfolioForm');
-    
-    const portfolioData = {
-        name: document.getElementById('editPortfolioName').value.trim(),
-        description: document.getElementById('editPortfolioDescription').value.trim()
-    };
-    
-    // Validate form
-    const errors = validateForm(form, {
-        editPortfolioName: [{ required: true, label: 'Portfolio Name' }]
-    });
-    
-    if (errors.length > 0) {
-        showAlert(errors.join('<br>'), 'danger');
-        return;
-    }
-    
-    try {
-        const response = await api.updatePortfolio(currentEditPortfolioId, portfolioData);
-        if (response.success) {
+        // For now, show an alert - you can implement a modal later
+        const portfolioName = prompt('Enter new portfolio name:');
+        if (portfolioName && portfolioName.trim()) {
+            await api.updatePortfolio(portfolioId, { 
+                name: portfolioName.trim(),
+                description: `Updated portfolio: ${portfolioName.trim()}`
+            });
             showAlert('Portfolio updated successfully', 'success');
-            const modal = bootstrap.Modal.getInstance(document.getElementById('editPortfolioModal'));
-            modal.hide();
-            
-            // If this is the currently selected portfolio, update the current portfolio reference
-            if (currentPortfolio && currentPortfolio.id === currentEditPortfolioId) {
-                currentPortfolio.name = portfolioData.name;
-                currentPortfolio.description = portfolioData.description;
-                
-                // Update the dashboard portfolio selector if visible
-                const dashboardSelect = document.getElementById('dashboardPortfolioSelect');
-                if (dashboardSelect) {
-                    const option = dashboardSelect.querySelector(`option[value="${currentEditPortfolioId}"]`);
-                    if (option) {
-                        option.textContent = portfolioData.name;
-                    }
-                }
-            }
-            
-            await loadPortfolios();
             await loadPortfoliosSection();
         }
     } catch (error) {
@@ -995,30 +828,9 @@ async function confirmDeletePortfolio(portfolioId) {
         if (confirm(`Are you sure you want to delete the portfolio "${portfolio.name}"? This action cannot be undone.`)) {
             await api.deletePortfolio(portfolioId);
             showAlert('Portfolio deleted successfully', 'success');
-            
-            // Clear portfolio details section
-            const portfolioDetailsContainer = document.getElementById('portfolioDetails');
-            portfolioDetailsContainer.innerHTML = '<p class="text-muted">Select a portfolio to view details</p>';
-            
-            // Remove active state from portfolio cards
-            document.querySelectorAll('.portfolio-card').forEach(card => {
-                card.classList.remove('active');
-            });
-            
-            // Check if this was the current portfolio before clearing the reference
-            const wasCurrentPortfolio = currentPortfolio && currentPortfolio.id === portfolioId;
-            
-            // If this was the current portfolio, clear the reference
-            if (wasCurrentPortfolio) {
-                currentPortfolio = null;
-            }
-            
-            // Always refresh portfolio selectors and lists
-            await loadPortfolios();
             await loadPortfoliosSection();
-            
-            // If this was the current portfolio, reset to default and refresh dashboard
-            if (wasCurrentPortfolio) {
+            // If this was the current portfolio, reset to default
+            if (currentPortfolio && currentPortfolio.id === portfolioId) {
                 await loadDefaultPortfolio();
                 await loadDashboard();
             }
@@ -1472,11 +1284,6 @@ function setupEventListeners() {
         createPortfolio();
     });
     
-    // Edit portfolio form submit
-    document.getElementById('edit-portfolio-submit').addEventListener('click', function() {
-        updatePortfolio();
-    });
-    
     // Update item form submit
     // Add item form submission
     document.getElementById('addItemForm').addEventListener('submit', function(e) {
@@ -1536,28 +1343,6 @@ function setupEventListeners() {
             confirmDeletePortfolio(parseInt(portfolioId));
         }
     });
-    
-    // Portfolio search functionality
-    document.getElementById('portfolioSearchBtn').addEventListener('click', function() {
-        const query = document.getElementById('portfolioSearchInput').value.trim().toLowerCase();
-        if (!query) {
-            displayPortfolioItemsWithPagination(); // 显示全部
-            return;
-        }
-        const filtered = allPortfolioItems.filter(item =>
-            (item.symbol && item.symbol.toLowerCase().includes(query)) ||
-            (item.name && item.name.toLowerCase().includes(query)) ||
-            (item.type && item.type.toLowerCase().includes(query))
-        );
-        displayPortfolioItems(filtered);
-    });
-    
-    // 支持回车搜索
-    document.getElementById('portfolioSearchInput').addEventListener('keydown', function(e) {
-        if (e.key === 'Enter') {
-            document.getElementById('portfolioSearchBtn').click();
-        }
-    });
 }
 
 // Utility function to format date for HTML date input (yyyy-MM-dd)
@@ -1598,51 +1383,6 @@ async function refreshAll() {
     }
 }
 
-// Theme integration
-function setupThemeIntegration() {
-    // Wait for theme manager to be available
-    if (typeof themeManager !== 'undefined') {
-        // Update charts when theme changes
-        const observer = new MutationObserver(function(mutations) {
-            mutations.forEach(function(mutation) {
-                if (mutation.type === 'attributes' && mutation.attributeName === 'data-theme') {
-                    updateChartsForTheme();
-                }
-            });
-        });
-        
-        observer.observe(document.documentElement, {
-            attributes: true,
-            attributeFilter: ['data-theme']
-        });
-    }
-}
-
-function updateChartsForTheme() {
-    const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
-    
-    // Update performance chart colors
-    if (performanceChart) {
-        const textColor = isDark ? '#ffffff' : '#212529';
-        const gridColor = isDark ? '#495057' : '#dee2e6';
-        
-        performanceChart.options.scales.x.ticks.color = textColor;
-        performanceChart.options.scales.y.ticks.color = textColor;
-        performanceChart.options.scales.x.grid.color = gridColor;
-        performanceChart.options.scales.y.grid.color = gridColor;
-        performanceChart.options.plugins.legend.labels.color = textColor;
-        performanceChart.update();
-    }
-    
-    // Update allocation chart colors
-    if (allocationChart) {
-        const textColor = isDark ? '#ffffff' : '#212529';
-        
-        allocationChart.options.plugins.legend.labels.color = textColor;
-        allocationChart.update();
-    }
-}
-
 //new
 // 假设 allPortfolioItems 存储所有项目，displayPortfolioItems(items) 渲染表格
 document.getElementById('portfolioSearchBtn').addEventListener('click', function() {
@@ -1665,42 +1405,3 @@ document.getElementById('portfolioSearchInput').addEventListener('keydown', func
         document.getElementById('portfolioSearchBtn').click();
     }
 });
-
-
-// portfolioListSearch
-let allPortfolios = [];
-async function loadPortfoliosSection() {
-    try {
-        const response = await api.getPortfolios();
-        if (response.success) {
-            allPortfolios = response.data;
-            renderPortfolioList(allPortfolios);
-        }
-    } catch (error) {
-        console.error('Failed to load portfolios section:', error);
-    }
-}
-
-function renderPortfolioList(portfolios) {
-    displayPortfoliosList(portfolios);
-}
-
-document.getElementById('portfolioListSearchBtn').addEventListener('click', function() {
-    const query = document.getElementById('portfolioListSearchInput').value.trim().toLowerCase();
-    if (!query) {
-        renderPortfolioList(allPortfolios);
-        return;
-    }
-    const filtered = allPortfolios.filter(p =>
-        p.name && p.name.toLowerCase().includes(query)
-    );
-    renderPortfolioList(filtered);
-});
-
-// enter search
-document.getElementById('portfolioListSearchInput').addEventListener('keydown', function(e) {
-    if (e.key === 'Enter') {
-        document.getElementById('portfolioListSearchBtn').click();
-    }
-});
-// new here
