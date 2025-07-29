@@ -1350,3 +1350,65 @@ async function refreshAll() {
         showLoading(false);
     }
 }
+
+//new
+// 假设 allPortfolioItems 存储所有项目，displayPortfolioItems(items) 渲染表格
+document.getElementById('portfolioSearchBtn').addEventListener('click', function() {
+    const query = document.getElementById('portfolioSearchInput').value.trim().toLowerCase();
+    if (!query) {
+        displayPortfolioItemsWithPagination(); // 显示全部
+        return;
+    }
+    const filtered = allPortfolioItems.filter(item =>
+        (item.symbol && item.symbol.toLowerCase().includes(query)) ||
+        (item.name && item.name.toLowerCase().includes(query)) ||
+        (item.type && item.type.toLowerCase().includes(query))
+    );
+    displayPortfolioItems(filtered);
+});
+
+// 支持回车搜索
+document.getElementById('portfolioSearchInput').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') {
+        document.getElementById('portfolioSearchBtn').click();
+    }
+});
+
+
+// portfolioListSearch
+let allPortfolios = [];
+async function loadPortfoliosSection() {
+    try {
+        const response = await api.getPortfolios();
+        if (response.success) {
+            allPortfolios = response.data;
+            renderPortfolioList(allPortfolios);
+        }
+    } catch (error) {
+        console.error('Failed to load portfolios section:', error);
+    }
+}
+
+function renderPortfolioList(portfolios) {
+    displayPortfoliosList(portfolios);
+}
+
+document.getElementById('portfolioListSearchBtn').addEventListener('click', function() {
+    const query = document.getElementById('portfolioListSearchInput').value.trim().toLowerCase();
+    if (!query) {
+        renderPortfolioList(allPortfolios);
+        return;
+    }
+    const filtered = allPortfolios.filter(p =>
+        p.name && p.name.toLowerCase().includes(query)
+    );
+    renderPortfolioList(filtered);
+});
+
+// enter search
+document.getElementById('portfolioListSearchInput').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') {
+        document.getElementById('portfolioListSearchBtn').click();
+    }
+});
+// new here
