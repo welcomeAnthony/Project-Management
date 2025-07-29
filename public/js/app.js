@@ -76,9 +76,19 @@ async function loadDefaultPortfolio() {
             if (dashboardSelect && currentPortfolio) {
                 dashboardSelect.value = currentPortfolio.id;
             }
+        } else {
+            // No portfolios available
+            currentPortfolio = null;
+            
+            // Clear dashboard portfolio selector
+            const dashboardSelect = document.getElementById('dashboardPortfolioSelect');
+            if (dashboardSelect) {
+                dashboardSelect.value = '';
+            }
         }
     } catch (error) {
         console.error('Failed to load default portfolio:', error);
+        currentPortfolio = null;
     }
 }
 
@@ -422,32 +432,58 @@ function updatePortfolioSelect(portfolios) {
     const select = document.getElementById('portfolioSelect');
     select.innerHTML = '<option value="">Select Portfolio</option>';
     
-    portfolios.forEach(portfolio => {
-        const option = document.createElement('option');
-        option.value = portfolio.id;
-        option.textContent = portfolio.name;
-        select.appendChild(option);
-    });
-    
     // Update the Dashboard portfolio selector
     const dashboardSelect = document.getElementById('dashboardPortfolioSelect');
     if (dashboardSelect) {
         dashboardSelect.innerHTML = '<option value="">Select Portfolio...</option>';
-        
-        portfolios.forEach(portfolio => {
-            const option = document.createElement('option');
-            option.value = portfolio.id;
-            option.textContent = portfolio.name;
-            if (currentPortfolio && portfolio.id === currentPortfolio.id) {
-                option.selected = true;
-            }
-            dashboardSelect.appendChild(option);
-        });
     }
+    
+    // If no portfolios exist, show appropriate message
+    if (!portfolios || portfolios.length === 0) {
+        const noPortfolioOption = document.createElement('option');
+        noPortfolioOption.value = '';
+        noPortfolioOption.textContent = 'No portfolios available';
+        noPortfolioOption.disabled = true;
+        select.appendChild(noPortfolioOption);
+        
+        if (dashboardSelect) {
+            const noDashboardOption = document.createElement('option');
+            noDashboardOption.value = '';
+            noDashboardOption.textContent = 'No portfolios available';
+            noDashboardOption.disabled = true;
+            dashboardSelect.appendChild(noDashboardOption);
+        }
+        return;
+    }
+    
+    portfolios.forEach(portfolio => {
+        // Add to Add Item form selector
+        const option = document.createElement('option');
+        option.value = portfolio.id;
+        option.textContent = portfolio.name;
+        select.appendChild(option);
+        
+        // Add to Dashboard selector
+        if (dashboardSelect) {
+            const dashOption = document.createElement('option');
+            dashOption.value = portfolio.id;
+            dashOption.textContent = portfolio.name;
+            if (currentPortfolio && portfolio.id === currentPortfolio.id) {
+                dashOption.selected = true;
+            }
+            dashboardSelect.appendChild(dashOption);
+        }
+    });
 }
 
 async function loadPortfoliosSection() {
     try {
+        // Initialize portfolio details section
+        const portfolioDetailsContainer = document.getElementById('portfolioDetails');
+        if (portfolioDetailsContainer) {
+            portfolioDetailsContainer.innerHTML = '<p class="text-muted">Select a portfolio to view details</p>';
+        }
+        
         const response = await api.getPortfolios();
         if (response.success) {
             displayPortfoliosList(response.data);
@@ -476,7 +512,21 @@ async function switchToPortfolio(portfolioId) {
 
 function displayPortfoliosList(portfolios) {
     const container = document.getElementById('portfoliosList');
+    const portfolioDetailsContainer = document.getElementById('portfolioDetails');
     container.innerHTML = '';
+    
+    // If no portfolios exist, show message and clear details
+    if (!portfolios || portfolios.length === 0) {
+        container.innerHTML = `
+            <div class="text-center py-5">
+                <i class="fas fa-folder-open fa-3x text-muted mb-3"></i>
+                <h5 class="text-muted">No Portfolios Found</h5>
+                <p class="text-muted">Create your first portfolio to get started</p>
+            </div>
+        `;
+        portfolioDetailsContainer.innerHTML = '<p class="text-muted">No portfolio selected</p>';
+        return;
+    }
     
     portfolios.forEach(portfolio => {
         const card = document.createElement('div');
@@ -611,6 +661,13 @@ async function editPortfolio(portfolioId) {
                 description: `Updated portfolio: ${portfolioName.trim()}`
             });
             showAlert('Portfolio updated successfully', 'success');
+            
+            // If this is the currently selected portfolio, update the current portfolio reference
+            if (currentPortfolio && currentPortfolio.id === portfolioId) {
+                currentPortfolio.name = portfolioName.trim();
+                currentPortfolio.description = `Updated portfolio: ${portfolioName.trim()}`;
+            }
+            
             await loadPortfoliosSection();
         }
     } catch (error) {
@@ -638,9 +695,30 @@ async function confirmDeletePortfolio(portfolioId) {
         if (confirm(`Are you sure you want to delete the portfolio "${portfolio.name}"? This action cannot be undone.`)) {
             await api.deletePortfolio(portfolioId);
             showAlert('Portfolio deleted successfully', 'success');
+            
+            // Clear portfolio details section
+            const portfolioDetailsContainer = document.getElementById('portfolioDetails');
+            portfolioDetailsContainer.innerHTML = '<p class="text-muted">Select a portfolio to view details</p>';
+            
+            // Remove active state from portfolio cards
+            document.querySelectorAll('.portfolio-card').forEach(card => {
+                card.classList.remove('active');
+            });
+            
+            // Check if this was the current portfolio before clearing the reference
+            const wasCurrentPortfolio = currentPortfolio && currentPortfolio.id === portfolioId;
+            
+            // If this was the current portfolio, clear the reference
+            if (wasCurrentPortfolio) {
+                currentPortfolio = null;
+            }
+            
+            // Always refresh portfolio selectors and lists
+            await loadPortfolios();
             await loadPortfoliosSection();
-            // If this was the current portfolio, reset to default
-            if (currentPortfolio && currentPortfolio.id === portfolioId) {
+            
+            // If this was the current portfolio, reset to default and refresh dashboard
+            if (wasCurrentPortfolio) {
                 await loadDefaultPortfolio();
                 await loadDashboard();
             }
