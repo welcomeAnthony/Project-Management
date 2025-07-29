@@ -9,6 +9,8 @@ const { createRateLimit, securityHeaders, errorHandler, notFoundHandler } = requ
 // Import routes
 const portfolioRoutes = require('./routes/portfolios');
 const portfolioItemRoutes = require('./routes/portfolioItems');
+const adminRoutes = require('./routes/admin');
+const marketRoutes = require('./routes/market');
 const transactionRoutes = require('./routes/transactions');
 
 // Import database and swagger
@@ -59,6 +61,8 @@ app.get('/', (req, res) => {
 // API routes
 app.use('/api/portfolios', portfolioRoutes);
 app.use('/api', portfolioItemRoutes);
+app.use('/api/admin', adminRoutes);
+app.use('/api/market', marketRoutes);
 app.use('/api/transactions', transactionRoutes);
 
 // Error handling middleware
