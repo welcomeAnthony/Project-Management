@@ -4,6 +4,7 @@ let currentPortfolio = null;
 let performanceChart = null;
 let allocationChart = null;
 let currentEditItemId = null;
+let currentEditPortfolioId = null;
 
 // Application initialization
 document.addEventListener('DOMContentLoaded', function() {
@@ -653,21 +654,78 @@ async function createPortfolio() {
 // Portfolio edit and delete functions
 async function editPortfolio(portfolioId) {
     try {
-        // For now, show an alert - you can implement a modal later
-        const portfolioName = prompt('Enter new portfolio name:');
-        if (portfolioName && portfolioName.trim()) {
-            await api.updatePortfolio(portfolioId, { 
-                name: portfolioName.trim(),
-                description: `Updated portfolio: ${portfolioName.trim()}`
-            });
+        // Get the portfolio details first
+        const portfolioResponse = await api.getPortfolio(portfolioId);
+        if (!portfolioResponse.success) {
+            showAlert('Failed to get portfolio details', 'danger');
+            return;
+        }
+        
+        const portfolio = portfolioResponse.data;
+        currentEditPortfolioId = portfolioId;
+        
+        // Show the edit modal with current data
+        showEditPortfolioModal(portfolio);
+    } catch (error) {
+        showAlert(error.message, 'danger');
+    }
+}
+
+function showEditPortfolioModal(portfolio) {
+    const modal = new bootstrap.Modal(document.getElementById('editPortfolioModal'));
+    const form = document.getElementById('editPortfolioForm');
+    
+    // Populate the form with current data
+    document.getElementById('editPortfolioName').value = portfolio.name;
+    document.getElementById('editPortfolioDescription').value = portfolio.description || '';
+    
+    // Clear any previous validation
+    clearFormValidation(form);
+    
+    modal.show();
+}
+
+async function updatePortfolio() {
+    const form = document.getElementById('editPortfolioForm');
+    
+    const portfolioData = {
+        name: document.getElementById('editPortfolioName').value.trim(),
+        description: document.getElementById('editPortfolioDescription').value.trim()
+    };
+    
+    // Validate form
+    const errors = validateForm(form, {
+        editPortfolioName: [{ required: true, label: 'Portfolio Name' }]
+    });
+    
+    if (errors.length > 0) {
+        showAlert(errors.join('<br>'), 'danger');
+        return;
+    }
+    
+    try {
+        const response = await api.updatePortfolio(currentEditPortfolioId, portfolioData);
+        if (response.success) {
             showAlert('Portfolio updated successfully', 'success');
+            const modal = bootstrap.Modal.getInstance(document.getElementById('editPortfolioModal'));
+            modal.hide();
             
             // If this is the currently selected portfolio, update the current portfolio reference
-            if (currentPortfolio && currentPortfolio.id === portfolioId) {
-                currentPortfolio.name = portfolioName.trim();
-                currentPortfolio.description = `Updated portfolio: ${portfolioName.trim()}`;
+            if (currentPortfolio && currentPortfolio.id === currentEditPortfolioId) {
+                currentPortfolio.name = portfolioData.name;
+                currentPortfolio.description = portfolioData.description;
+                
+                // Update the dashboard portfolio selector if visible
+                const dashboardSelect = document.getElementById('dashboardPortfolioSelect');
+                if (dashboardSelect) {
+                    const option = dashboardSelect.querySelector(`option[value="${currentEditPortfolioId}"]`);
+                    if (option) {
+                        option.textContent = portfolioData.name;
+                    }
+                }
             }
             
+            await loadPortfolios();
             await loadPortfoliosSection();
         }
     } catch (error) {
@@ -1172,6 +1230,11 @@ function setupEventListeners() {
         createPortfolio();
     });
     
+    // Edit portfolio form submit
+    document.getElementById('edit-portfolio-submit').addEventListener('click', function() {
+        updatePortfolio();
+    });
+    
     // Update item form submit
     // Add item form submission
     document.getElementById('addItemForm').addEventListener('submit', function(e) {
@@ -1226,6 +1289,28 @@ function setupEventListeners() {
             confirmDeletePortfolio(parseInt(portfolioId));
         }
     });
+    
+    // Portfolio search functionality
+    document.getElementById('portfolioSearchBtn').addEventListener('click', function() {
+        const query = document.getElementById('portfolioSearchInput').value.trim().toLowerCase();
+        if (!query) {
+            displayPortfolioItemsWithPagination(); // 显示全部
+            return;
+        }
+        const filtered = allPortfolioItems.filter(item =>
+            (item.symbol && item.symbol.toLowerCase().includes(query)) ||
+            (item.name && item.name.toLowerCase().includes(query)) ||
+            (item.type && item.type.toLowerCase().includes(query))
+        );
+        displayPortfolioItems(filtered);
+    });
+    
+    // 支持回车搜索
+    document.getElementById('portfolioSearchInput').addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') {
+            document.getElementById('portfolioSearchBtn').click();
+        }
+    });
 }
 
 // Utility function to format date for HTML date input (yyyy-MM-dd)
@@ -1265,26 +1350,3 @@ async function refreshAll() {
         showLoading(false);
     }
 }
-
-//new
-// 假设 allPortfolioItems 存储所有项目，displayPortfolioItems(items) 渲染表格
-document.getElementById('portfolioSearchBtn').addEventListener('click', function() {
-    const query = document.getElementById('portfolioSearchInput').value.trim().toLowerCase();
-    if (!query) {
-        displayPortfolioItemsWithPagination(); // 显示全部
-        return;
-    }
-    const filtered = allPortfolioItems.filter(item =>
-        (item.symbol && item.symbol.toLowerCase().includes(query)) ||
-        (item.name && item.name.toLowerCase().includes(query)) ||
-        (item.type && item.type.toLowerCase().includes(query))
-    );
-    displayPortfolioItems(filtered);
-});
-
-// 支持回车搜索
-document.getElementById('portfolioSearchInput').addEventListener('keydown', function(e) {
-    if (e.key === 'Enter') {
-        document.getElementById('portfolioSearchBtn').click();
-    }
-});
