@@ -16,6 +16,7 @@ async function initializeApp() {
         await loadPortfolios();
         await loadDefaultPortfolio();
         setupEventListeners();
+        setupThemeIntegration();
         showSection('dashboard');
     } catch (error) {
         console.error('Failed to initialize app:', error);
@@ -94,7 +95,22 @@ async function loadDefaultPortfolio() {
 }
 
 async function loadPortfolioSummary() {
-    if (!currentPortfolio) return;
+    if (!currentPortfolio) {
+        // Clear dashboard when no portfolio selected
+        document.getElementById('totalValue').textContent = '$0.00';
+        document.getElementById('totalGain').textContent = '$0.00';
+        document.getElementById('totalItems').textContent = '0';
+        document.getElementById('gainPercent').textContent = '0.00%';
+        
+        // Reset gain/loss card colors
+        const gainCard = document.getElementById('gainLossCard');
+        const percentCard = document.getElementById('percentCard');
+        gainCard.classList.remove('positive', 'negative', 'neutral');
+        percentCard.classList.remove('positive', 'negative', 'neutral');
+        gainCard.classList.add('neutral');
+        percentCard.classList.add('neutral');
+        return;
+    }
     
     try {
         const response = await api.getPortfolioSummary(currentPortfolio.id);
@@ -128,6 +144,11 @@ async function loadPortfolioSummary() {
         }
     } catch (error) {
         console.error('Failed to load portfolio summary:', error);
+        // Clear dashboard on error
+        document.getElementById('totalValue').textContent = '$0.00';
+        document.getElementById('totalGain').textContent = '$0.00';
+        document.getElementById('totalItems').textContent = '0';
+        document.getElementById('gainPercent').textContent = '0.00%';
     }
 }
 
@@ -335,16 +356,33 @@ async function loadPerformanceChart() {
                     responsive: true,
                     maintainAspectRatio: false,
                     scales: {
+                        x: {
+                            ticks: {
+                                color: document.documentElement.getAttribute('data-theme') === 'dark' ? '#ffffff' : '#212529'
+                            },
+                            grid: {
+                                color: document.documentElement.getAttribute('data-theme') === 'dark' ? '#495057' : '#dee2e6'
+                            }
+                        },
                         y: {
                             beginAtZero: false,
                             ticks: {
+                                color: document.documentElement.getAttribute('data-theme') === 'dark' ? '#ffffff' : '#212529',
                                 callback: function(value) {
                                     return formatCurrency(value);
                                 }
+                            },
+                            grid: {
+                                color: document.documentElement.getAttribute('data-theme') === 'dark' ? '#495057' : '#dee2e6'
                             }
                         }
                     },
                     plugins: {
+                        legend: {
+                            labels: {
+                                color: document.documentElement.getAttribute('data-theme') === 'dark' ? '#ffffff' : '#212529'
+                            }
+                        },
                         tooltip: {
                             callbacks: {
                                 label: function(context) {
@@ -396,7 +434,10 @@ async function loadAllocationChart() {
                     maintainAspectRatio: false,
                     plugins: {
                         legend: {
-                            position: 'bottom'
+                            position: 'bottom',
+                            labels: {
+                                color: document.documentElement.getAttribute('data-theme') === 'dark' ? '#ffffff' : '#212529'
+                            }
                         },
                         tooltip: {
                             callbacks: {
@@ -1348,6 +1389,51 @@ async function refreshAll() {
         showAlert('Failed to refresh data', 'danger');
     } finally {
         showLoading(false);
+    }
+}
+
+// Theme integration
+function setupThemeIntegration() {
+    // Wait for theme manager to be available
+    if (typeof themeManager !== 'undefined') {
+        // Update charts when theme changes
+        const observer = new MutationObserver(function(mutations) {
+            mutations.forEach(function(mutation) {
+                if (mutation.type === 'attributes' && mutation.attributeName === 'data-theme') {
+                    updateChartsForTheme();
+                }
+            });
+        });
+        
+        observer.observe(document.documentElement, {
+            attributes: true,
+            attributeFilter: ['data-theme']
+        });
+    }
+}
+
+function updateChartsForTheme() {
+    const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+    
+    // Update performance chart colors
+    if (performanceChart) {
+        const textColor = isDark ? '#ffffff' : '#212529';
+        const gridColor = isDark ? '#495057' : '#dee2e6';
+        
+        performanceChart.options.scales.x.ticks.color = textColor;
+        performanceChart.options.scales.y.ticks.color = textColor;
+        performanceChart.options.scales.x.grid.color = gridColor;
+        performanceChart.options.scales.y.grid.color = gridColor;
+        performanceChart.options.plugins.legend.labels.color = textColor;
+        performanceChart.update();
+    }
+    
+    // Update allocation chart colors
+    if (allocationChart) {
+        const textColor = isDark ? '#ffffff' : '#212529';
+        
+        allocationChart.options.plugins.legend.labels.color = textColor;
+        allocationChart.update();
     }
 }
 
