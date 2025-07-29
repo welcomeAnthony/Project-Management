@@ -2043,6 +2043,49 @@ async function deleteItem(itemId) {
     }
 }
 
+// 页面初始化后绑定事件
+document.addEventListener('DOMContentLoaded', function() {
+    const currencySelect = document.getElementById('currency');
+    const purchaseInput = document.getElementById('purchasePrice');
+    const currentInput = document.getElementById('currentPrice');
+
+    function updatePriceInputsForCurrency() {
+        const isJPY = currencySelect.value === 'JPY';
+        if (isJPY) {
+            purchaseInput.step = '1';
+            purchaseInput.min = '0';
+            currentInput.step = '1';
+            currentInput.min = '0';
+            // Reset values to zero
+            purchaseInput.value = '0';
+            currentInput.value = '0';
+        } else {
+            purchaseInput.step = '0.01';
+            purchaseInput.min = '0';
+            currentInput.step = '0.01';
+            currentInput.min = '0';
+            // Reset values to zero
+            purchaseInput.value = '0';
+            currentInput.value = '0';
+        }
+    }
+
+    // 监听币种变化
+    currencySelect.addEventListener('change', updatePriceInputsForCurrency);
+
+    // 只允许输入整数（JPY时）
+    function forceIntegerInput(e) {
+        if (currencySelect.value === 'JPY') {
+            e.target.value = e.target.value.replace(/\D/g, '');
+        }
+    }
+    purchaseInput.addEventListener('input', forceIntegerInput);
+    currentInput.addEventListener('input', forceIntegerInput);
+
+    // 初始化时也执行一次
+    updatePriceInputsForCurrency();
+});
+
 // Event listeners
 function setupEventListeners() {
     // Navigation event listeners
