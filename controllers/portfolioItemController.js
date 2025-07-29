@@ -1,5 +1,6 @@
 const PortfolioItem = require('../models/PortfolioItem');
 const Portfolio = require('../models/Portfolio');
+const Transaction = require('../models/Transaction');
 
 class PortfolioItemController {
   // Get all items for a portfolio
@@ -70,6 +71,25 @@ class PortfolioItemController {
       }
 
       const item = await PortfolioItem.create(req.validatedBody);
+      
+      // Create a corresponding transaction record
+      const transactionData = {
+        portfolio_id: item.portfolio_id,
+        portfolio_item_id: item.id,
+        transaction_type: 'buy',
+        symbol: item.symbol,
+        asset_name: item.name,
+        quantity: item.quantity,
+        price_per_unit: item.purchase_price,
+        total_amount: item.quantity * item.purchase_price,
+        fees: 0,
+        transaction_date: item.purchase_date,
+        description: `Initial purchase of ${item.name} (${item.symbol})`,
+        status: 'completed'
+      };
+      
+      await Transaction.create(transactionData);
+      
       res.status(201).json({
         success: true,
         message: 'Portfolio item created successfully',

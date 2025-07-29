@@ -989,6 +989,32 @@ async function handleBuyShares() {
             updateData.current_price = parseFloat(newCurrentPrice);
         }
         
+        // First create the transaction record
+        const transactionData = {
+            portfolio_id: parseInt(currentItem.portfolio_id),
+            transaction_type: 'buy',
+            symbol: currentItem.symbol,
+            asset_name: currentItem.name,
+            quantity: buyQuantity,
+            price_per_unit: buyPrice,
+            total_amount: buyQuantity * buyPrice,
+            fees: 0,
+            transaction_date: buyDate,
+            description: `Additional purchase of ${currentItem.name} (${currentItem.symbol})`,
+            status: 'completed'
+        };
+        
+        const transactionResponse = await fetch('/api/transactions', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(transactionData)
+        });
+        
+        if (!transactionResponse.ok) {
+            throw new Error('Failed to create transaction record');
+        }
+        
+        // Then update the portfolio item
         const updateResponse = await api.updatePortfolioItem(currentEditItemId, updateData);
         if (updateResponse.success) {
             showAlert(`Successfully bought ${buyQuantity} more shares of ${currentItem.symbol}`, 'success');
@@ -1199,6 +1225,31 @@ async function handleSellShares() {
         }
         
         if (sellAll || sellQuantity >= currentQuantity) {
+            // Create sell transaction record for the entire position
+            const transactionData = {
+                portfolio_id: parseInt(currentItem.portfolio_id),
+                transaction_type: 'sell',
+                symbol: currentItem.symbol,
+                asset_name: currentItem.name,
+                quantity: currentQuantity, // Use actual quantity being sold
+                price_per_unit: sellPrice,
+                total_amount: currentQuantity * sellPrice,
+                fees: 0,
+                transaction_date: sellDate,
+                description: `Complete sale of ${currentItem.name} (${currentItem.symbol})`,
+                status: 'completed'
+            };
+            
+            const transactionResponse = await fetch('/api/transactions', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(transactionData)
+            });
+            
+            if (!transactionResponse.ok) {
+                throw new Error('Failed to create transaction record');
+            }
+            
             // Delete the entire position
             const deleteResponse = await api.deletePortfolioItem(currentEditItemId);
             if (deleteResponse.success) {
@@ -1207,6 +1258,31 @@ async function handleSellShares() {
                 await loadDashboard();
             }
         } else {
+            // Create sell transaction record for partial sale
+            const transactionData = {
+                portfolio_id: parseInt(currentItem.portfolio_id),
+                transaction_type: 'sell',
+                symbol: currentItem.symbol,
+                asset_name: currentItem.name,
+                quantity: sellQuantity,
+                price_per_unit: sellPrice,
+                total_amount: sellQuantity * sellPrice,
+                fees: 0,
+                transaction_date: sellDate,
+                description: `Partial sale of ${currentItem.name} (${currentItem.symbol})`,
+                status: 'completed'
+            };
+            
+            const transactionResponse = await fetch('/api/transactions', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(transactionData)
+            });
+            
+            if (!transactionResponse.ok) {
+                throw new Error('Failed to create transaction record');
+            }
+            
             // Reduce quantity
             const newQuantity = currentQuantity - sellQuantity;
             const updateData = {
