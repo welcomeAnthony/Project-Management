@@ -1266,12 +1266,11 @@ async function refreshAll() {
     }
 }
 
-//new
-// 假设 allPortfolioItems 存储所有项目，displayPortfolioItems(items) 渲染表格
+// portfolioSearch
 document.getElementById('portfolioSearchBtn').addEventListener('click', function() {
     const query = document.getElementById('portfolioSearchInput').value.trim().toLowerCase();
     if (!query) {
-        displayPortfolioItemsWithPagination(); // 显示全部
+        displayPortfolioItemsWithPagination();
         return;
     }
     const filtered = allPortfolioItems.filter(item =>
@@ -1282,9 +1281,48 @@ document.getElementById('portfolioSearchBtn').addEventListener('click', function
     displayPortfolioItems(filtered);
 });
 
-// 支持回车搜索
+// enter search
 document.getElementById('portfolioSearchInput').addEventListener('keydown', function(e) {
     if (e.key === 'Enter') {
         document.getElementById('portfolioSearchBtn').click();
     }
 });
+
+
+// portfolioListSearch
+let allPortfolios = [];
+async function loadPortfoliosSection() {
+    try {
+        const response = await api.getPortfolios();
+        if (response.success) {
+            allPortfolios = response.data;
+            renderPortfolioList(allPortfolios);
+        }
+    } catch (error) {
+        console.error('Failed to load portfolios section:', error);
+    }
+}
+
+function renderPortfolioList(portfolios) {
+    displayPortfoliosList(portfolios);
+}
+
+document.getElementById('portfolioListSearchBtn').addEventListener('click', function() {
+    const query = document.getElementById('portfolioListSearchInput').value.trim().toLowerCase();
+    if (!query) {
+        renderPortfolioList(allPortfolios);
+        return;
+    }
+    const filtered = allPortfolios.filter(p =>
+        p.name && p.name.toLowerCase().includes(query)
+    );
+    renderPortfolioList(filtered);
+});
+
+// enter search
+document.getElementById('portfolioListSearchInput').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') {
+        document.getElementById('portfolioListSearchBtn').click();
+    }
+});
+// new here
