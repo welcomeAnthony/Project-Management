@@ -4,6 +4,13 @@ let currentPortfolio = null;
 let performanceChart = null;
 let allocationChart = null;
 let currentEditItemId = null;
+let currentEditPortfolioId = null;
+
+// Market indices variables
+let marketIndicesData = [];
+let currentMarketIndex = 0;
+let marketFlipInterval = null;
+let marketDataInterval = null;
 
 // Application initialization
 document.addEventListener('DOMContentLoaded', function() {
@@ -12,6 +19,9 @@ document.addEventListener('DOMContentLoaded', function() {
 
 async function initializeApp() {
     try {
+        // Initialize market indices display
+        initializeMarketIndices();
+        
         await loadPortfolios();
         await loadDefaultPortfolio();
         setupEventListeners();
@@ -19,6 +29,306 @@ async function initializeApp() {
     } catch (error) {
         console.error('Failed to initialize app:', error);
         showAlert('Failed to initialize application', 'danger');
+    }
+}
+
+// Market Indices Functions
+async function initializeMarketIndices() {
+    try {
+        console.log('🎯 Initializing market indices display...');
+        
+        // Check if the display element exists
+        const flipDisplay = document.getElementById('marketFlipDisplay');
+        if (!flipDisplay) {
+            console.error('❌ Market flip display element not found!');
+            return;
+        }
+        console.log('✅ Market flip display element found');
+        
+        // Create tooltip element
+        createMarketTooltip();
+        
+        // Load initial market data
+        await loadMarketIndicesData();
+        
+        // Start the flip display
+        startMarketFlipDisplay();
+        
+        // Set up hover events
+        setupMarketHoverEvents();
+        
+        // Set up interval to refresh data every 10 minutes
+        marketDataInterval = setInterval(loadMarketIndicesData, 10 * 60 * 1000);
+        
+        console.log('✅ Market indices display initialized successfully');
+    } catch (error) {
+        console.error('❌ Failed to initialize market indices:', error);
+        // Show fallback display
+        showMarketFallback();
+    }
+}
+
+async function loadMarketIndicesData() {
+    try {
+        console.log('📡 Loading market indices data...');
+        const response = await fetch('/api/market/indices');
+        const data = await response.json();
+        
+        if (data.success && data.data.length > 0) {
+            marketIndicesData = data.data;
+            console.log('✅ Market indices data loaded:', marketIndicesData.length, 'indices');
+            console.log('📊 Sample data:', marketIndicesData[0]);
+        } else {
+            console.warn('⚠️ No market indices data received');
+            showMarketFallback();
+        }
+    } catch (error) {
+        console.error('❌ Error loading market indices data:', error);
+        showMarketFallback();
+    }
+}
+
+function startMarketFlipDisplay() {
+    const flipDisplay = document.getElementById('marketFlipDisplay');
+    if (!flipDisplay) return;
+    
+    // Clear any existing interval
+    if (marketFlipInterval) {
+        clearInterval(marketFlipInterval);
+    }
+    
+    // Start with the first index
+    currentMarketIndex = 0;
+    updateFlipDisplay();
+    
+    // Set up interval to flip every 10 seconds
+    marketFlipInterval = setInterval(() => {
+        if (marketIndicesData.length > 0) {
+            currentMarketIndex = (currentMarketIndex + 1) % marketIndicesData.length;
+            updateFlipDisplay();
+        }
+    }, 1800);
+}
+
+function updateFlipDisplay() {
+    const flipDisplay = document.getElementById('marketFlipDisplay');
+    if (!flipDisplay || marketIndicesData.length === 0) {
+        console.warn('⚠️ Cannot update flip display - element missing or no data');
+        return;
+    }
+    
+    const currentData = marketIndicesData[currentMarketIndex];
+    if (!currentData) {
+        console.warn('⚠️ No data for index:', currentMarketIndex);
+        return;
+    }
+    
+    console.log('🔄 Updating flip display with:', currentData.symbol, currentData.price);
+    
+    // Find existing flip item or create new one
+    let flipItem = flipDisplay.querySelector('.flip-item');
+    if (!flipItem) {
+        flipItem = document.createElement('div');
+        flipItem.className = 'flip-item';
+        flipDisplay.appendChild(flipItem);
+        console.log('➕ Created new flip item');
+    }
+    
+    // Determine change class and sign
+    let changeClass = 'neutral';
+    let changeSign = '';
+    let changeValue = currentData.change;
+    
+    if (changeValue !== 'N/A' && changeValue !== '--') {
+        const changeNum = parseFloat(changeValue);
+        if (changeNum > 0) {
+            changeClass = 'positive';
+            changeSign = '+';
+        } else if (changeNum < 0) {
+            changeClass = 'negative';
+            changeSign = '';
+        }
+    }
+    
+    // Create new content
+    const newContent = `
+        <div class="flip-content">
+            <span class="index-name" title="${currentData.name}">${currentData.symbol}</span>
+            <span class="index-value">${currentData.price !== 'N/A' ? formatMarketPrice(currentData.price) : 'N/A'}</span>
+            <span class="index-change ${changeClass}">
+                ${changeValue !== 'N/A' ? `${changeSign}${changeValue}` : 'N/A'}
+            </span>
+        </div>
+    `;
+    
+    // Add exit animation to current item
+    flipItem.classList.add('exit');
+    
+    // Create new item with new content
+    setTimeout(() => {
+        flipItem.innerHTML = newContent;
+        flipItem.classList.remove('exit');
+        flipItem.classList.add('active');
+        
+        // Remove active class after animation
+        setTimeout(() => {
+            flipItem.classList.remove('active');
+        }, 800);
+    }, 400);
+}
+
+function formatMarketPrice(price) {
+    const num = parseFloat(price);
+    if (isNaN(num)) return price;
+    
+    // Always show full precision with 2 decimal places
+    return num.toFixed(2);
+}
+
+function createMarketTooltip() {
+    // Remove existing tooltip if any
+    const existingTooltip = document.getElementById('marketTooltip');
+    if (existingTooltip) {
+        existingTooltip.remove();
+    }
+    
+    // Create tooltip element
+    const tooltip = document.createElement('div');
+    tooltip.id = 'marketTooltip';
+    tooltip.className = 'market-tooltip';
+    tooltip.style.display = 'none';
+    document.body.appendChild(tooltip);
+}
+
+function setupMarketHoverEvents() {
+    const container = document.querySelector('.market-indices-container');
+    if (!container) return;
+    
+    let hoverTimeout;
+    
+    container.addEventListener('mouseenter', function() {
+        // Clear any existing timeout
+        clearTimeout(hoverTimeout);
+        
+        // Show tooltip after a short delay
+        hoverTimeout = setTimeout(() => {
+            showMarketTooltip();
+        }, 300);
+    });
+    
+    container.addEventListener('mouseleave', function() {
+        // Clear timeout and hide tooltip
+        clearTimeout(hoverTimeout);
+        hideMarketTooltip();
+    });
+    
+    // Update tooltip position on mouse move
+    container.addEventListener('mousemove', function(e) {
+        updateTooltipPosition(e);
+    });
+}
+
+function showMarketTooltip() {
+    if (marketIndicesData.length === 0) return;
+    
+    const tooltip = document.getElementById('marketTooltip');
+    if (!tooltip) return;
+    
+    // Create tooltip content
+    let tooltipContent = '<div class="tooltip-header">Market Indices</div>';
+    
+    marketIndicesData.forEach(index => {
+        let changeClass = 'neutral';
+        let changeSign = '';
+        
+        if (index.change !== 'N/A' && index.change !== '--') {
+            const changeNum = parseFloat(index.change);
+            if (changeNum > 0) {
+                changeClass = 'positive';
+                changeSign = '+';
+            } else if (changeNum < 0) {
+                changeClass = 'negative';
+                changeSign = '';
+            }
+        }
+        
+        tooltipContent += `
+            <div class="tooltip-item">
+                <div class="tooltip-symbol">${index.symbol}</div>
+                <div class="tooltip-name">${index.name}</div>
+                <div class="tooltip-price">$${formatMarketPrice(index.price)}</div>
+                <div class="tooltip-change ${changeClass}">
+                    ${index.change !== 'N/A' ? `${changeSign}${index.change} (${changeSign}${index.changePercent}%)` : 'N/A'}
+                </div>
+            </div>
+        `;
+    });
+    
+    tooltip.innerHTML = tooltipContent;
+    tooltip.style.display = 'block';
+}
+
+function hideMarketTooltip() {
+    const tooltip = document.getElementById('marketTooltip');
+    if (tooltip) {
+        tooltip.style.display = 'none';
+    }
+}
+
+function updateTooltipPosition(e) {
+    const tooltip = document.getElementById('marketTooltip');
+    if (!tooltip || tooltip.style.display === 'none') return;
+    
+    const rect = tooltip.getBoundingClientRect();
+    const viewportWidth = window.innerWidth;
+    const viewportHeight = window.innerHeight;
+    
+    let left = e.clientX + 15;
+    let top = e.clientY - 10;
+    
+    // Adjust if tooltip would go off screen
+    if (left + rect.width > viewportWidth) {
+        left = e.clientX - rect.width - 15;
+    }
+    
+    if (top + rect.height > viewportHeight) {
+        top = e.clientY - rect.height - 10;
+    }
+    
+    tooltip.style.left = left + 'px';
+    tooltip.style.top = top + 'px';
+}
+
+function showMarketFallback() {
+    const flipDisplay = document.getElementById('marketFlipDisplay');
+    if (!flipDisplay) return;
+    
+    flipDisplay.innerHTML = `
+        <div class="flip-item active">
+            <div class="flip-content">
+                <span class="index-name">Market</span>
+                <span class="index-value">Data</span>
+                <span class="index-change neutral">Loading</span>
+            </div>
+        </div>
+    `;
+}
+
+// Cleanup function for market intervals
+function cleanupMarketIndices() {
+    if (marketFlipInterval) {
+        clearInterval(marketFlipInterval);
+        marketFlipInterval = null;
+    }
+    if (marketDataInterval) {
+        clearInterval(marketDataInterval);
+        marketDataInterval = null;
+    }
+    
+    // Remove tooltip
+    const tooltip = document.getElementById('marketTooltip');
+    if (tooltip) {
+        tooltip.remove();
     }
 }
 
@@ -315,45 +625,119 @@ async function loadPerformanceChart() {
             // Build datasets based on selected view modes
             const datasets = [];
             
-            // Always show portfolio value if selected
+            // Portfolio Value dataset with dynamic colors
             if (viewModes.includes('value')) {
+                const portfolioValues = performanceData.map(p => parseFloat(p.total_value) || 0);
+                const initialValue = portfolioValues[0] || 0;
+                
+                // Create dynamic colors based on gain/loss from initial value
+                const portfolioColors = portfolioValues.map(value => {
+                    return value >= initialValue ? 'rgba(0, 123, 255, 0.8)' : 'rgba(220, 53, 69, 0.8)';
+                });
+                
+                // Create segment colors for the line
+                const portfolioSegmentColors = [];
+                for (let i = 0; i < portfolioValues.length - 1; i++) {
+                    if (portfolioValues[i + 1] >= initialValue) {
+                        portfolioSegmentColors.push('rgba(0, 123, 255, 0.8)');
+                    } else {
+                        portfolioSegmentColors.push('rgba(220, 53, 69, 0.8)');
+                    }
+                }
+                
                 datasets.push({
                     label: 'Portfolio Value',
-                    data: performanceData.map(p => parseFloat(p.total_value) || 0),
-                    borderColor: '#007bff',
-                    backgroundColor: 'rgba(0, 123, 255, 0.1)',
+                    data: portfolioValues,
+                    borderColor: function(context) {
+                        const value = context.parsed?.y || 0;
+                        return value >= initialValue ? '#007bff' : '#dc3545';
+                    },
+                    backgroundColor: function(context) {
+                        const value = context.parsed?.y || 0;
+                        return value >= initialValue ? 'rgba(0, 123, 255, 0.1)' : 'rgba(220, 53, 69, 0.1)';
+                    },
+                    segment: {
+                        borderColor: function(ctx) {
+                            const value = ctx.p1.parsed.y;
+                            return value >= initialValue ? '#007bff' : '#dc3545';
+                        }
+                    },
                     borderWidth: 2,
                     fill: true,
                     tension: 0.4,
-                    yAxisID: 'y'
+                    yAxisID: 'y',
+                    pointBackgroundColor: portfolioColors,
+                    pointBorderColor: portfolioColors
                 });
             }
             
-            // Add daily change dataset if selected
+            // Daily Change dataset with dynamic colors
             if (viewModes.includes('change')) {
+                const dailyChanges = performanceData.map(p => parseFloat(p.daily_change) || 0);
+                
+                // Create dynamic colors based on positive/negative values
+                const changeColors = dailyChanges.map(value => {
+                    return value >= 0 ? 'rgba(40, 167, 69, 0.8)' : 'rgba(220, 53, 69, 0.8)';
+                });
+                
                 datasets.push({
                     label: 'Daily Change ($)',
-                    data: performanceData.map(p => parseFloat(p.daily_change) || 0),
-                    borderColor: '#28a745',
-                    backgroundColor: 'rgba(40, 167, 69, 0.1)',
+                    data: dailyChanges,
+                    borderColor: function(context) {
+                        const value = context.parsed?.y || 0;
+                        return value >= 0 ? '#28a745' : '#dc3545';
+                    },
+                    backgroundColor: function(context) {
+                        const value = context.parsed?.y || 0;
+                        return value >= 0 ? 'rgba(40, 167, 69, 0.1)' : 'rgba(220, 53, 69, 0.1)';
+                    },
+                    segment: {
+                        borderColor: function(ctx) {
+                            const value = ctx.p1.parsed.y;
+                            return value >= 0 ? '#28a745' : '#dc3545';
+                        }
+                    },
                     borderWidth: 2,
                     fill: false,
                     tension: 0.4,
-                    yAxisID: viewModes.includes('value') ? 'y1' : 'y'
+                    yAxisID: viewModes.includes('value') ? 'y1' : 'y',
+                    pointBackgroundColor: changeColors,
+                    pointBorderColor: changeColors
                 });
             }
             
-            // Add daily change percent dataset if selected
+            // Daily Change Percent dataset with dynamic colors
             if (viewModes.includes('percent')) {
+                const dailyChangePercents = performanceData.map(p => parseFloat(p.daily_change_percent) || 0);
+                
+                // Create dynamic colors based on positive/negative values
+                const percentColors = dailyChangePercents.map(value => {
+                    return value >= 0 ? 'rgba(23, 162, 184, 0.8)' : 'rgba(220, 53, 69, 0.8)';
+                });
+                
                 datasets.push({
                     label: 'Daily Change (%)',
-                    data: performanceData.map(p => parseFloat(p.daily_change_percent) || 0),
-                    borderColor: '#17a2b8',
-                    backgroundColor: 'rgba(23, 162, 184, 0.1)',
+                    data: dailyChangePercents,
+                    borderColor: function(context) {
+                        const value = context.parsed?.y || 0;
+                        return value >= 0 ? '#17a2b8' : '#dc3545';
+                    },
+                    backgroundColor: function(context) {
+                        const value = context.parsed?.y || 0;
+                        return value >= 0 ? 'rgba(23, 162, 184, 0.1)' : 'rgba(220, 53, 69, 0.1)';
+                    },
+                    segment: {
+                        borderColor: function(ctx) {
+                            const value = ctx.p1.parsed.y;
+                            return value >= 0 ? '#17a2b8' : '#dc3545';
+                        }
+                    },
                     borderWidth: 2,
                     fill: false,
                     tension: 0.4,
-                    yAxisID: (viewModes.includes('value') || viewModes.includes('change')) ? 'y2' : 'y'
+                    yAxisID: (viewModes.includes('value') || viewModes.includes('change')) ? 'y2' : 'y',
+                    pointBackgroundColor: percentColors,
+                    pointBorderColor: percentColors
                 });
             }
             
@@ -375,6 +759,11 @@ async function loadPerformanceChart() {
                         callback: function(value) {
                             return formatCurrency(value);
                         }
+                    },
+                    grid: {
+                        color: function(context) {
+                            return context.tick.value === 0 ? 'rgba(0, 0, 0, 0.3)' : 'rgba(0, 0, 0, 0.1)';
+                        }
                     }
                 };
             } else if (viewModes.includes('change') && !viewModes.includes('percent')) {
@@ -390,6 +779,11 @@ async function loadPerformanceChart() {
                         callback: function(value) {
                             return formatCurrency(value);
                         }
+                    },
+                    grid: {
+                        color: function(context) {
+                            return context.tick.value === 0 ? 'rgba(0, 0, 0, 0.3)' : 'rgba(0, 0, 0, 0.1)';
+                        }
                     }
                 };
             } else if (viewModes.includes('percent') && !viewModes.includes('change')) {
@@ -404,6 +798,11 @@ async function loadPerformanceChart() {
                     ticks: {
                         callback: function(value) {
                             return value.toFixed(2) + '%';
+                        }
+                    },
+                    grid: {
+                        color: function(context) {
+                            return context.tick.value === 0 ? 'rgba(0, 0, 0, 0.3)' : 'rgba(0, 0, 0, 0.1)';
                         }
                     }
                 };
@@ -425,7 +824,10 @@ async function loadPerformanceChart() {
                         }
                     },
                     grid: {
-                        drawOnChartArea: false
+                        drawOnChartArea: false,
+                        color: function(context) {
+                            return context.tick.value === 0 ? 'rgba(0, 0, 0, 0.3)' : 'rgba(0, 0, 0, 0.1)';
+                        }
                     }
                 };
             } else if (viewModes.includes('value') && viewModes.includes('percent')) {
@@ -443,7 +845,10 @@ async function loadPerformanceChart() {
                         }
                     },
                     grid: {
-                        drawOnChartArea: false
+                        drawOnChartArea: false,
+                        color: function(context) {
+                            return context.tick.value === 0 ? 'rgba(0, 0, 0, 0.3)' : 'rgba(0, 0, 0, 0.1)';
+                        }
                     }
                 };
             } else if (viewModes.includes('change') && viewModes.includes('percent') && !viewModes.includes('value')) {
@@ -458,6 +863,11 @@ async function loadPerformanceChart() {
                     ticks: {
                         callback: function(value) {
                             return formatCurrency(value);
+                        }
+                    },
+                    grid: {
+                        color: function(context) {
+                            return context.tick.value === 0 ? 'rgba(0, 0, 0, 0.3)' : 'rgba(0, 0, 0, 0.1)';
                         }
                     }
                 };
@@ -475,7 +885,10 @@ async function loadPerformanceChart() {
                         }
                     },
                     grid: {
-                        drawOnChartArea: false
+                        drawOnChartArea: false,
+                        color: function(context) {
+                            return context.tick.value === 0 ? 'rgba(0, 0, 0, 0.3)' : 'rgba(0, 0, 0, 0.1)';
+                        }
                     }
                 };
             }
@@ -492,7 +905,10 @@ async function loadPerformanceChart() {
                         }
                     },
                     grid: {
-                        drawOnChartArea: false
+                        drawOnChartArea: false,
+                        color: function(context) {
+                            return context.tick.value === 0 ? 'rgba(0, 0, 0, 0.3)' : 'rgba(0, 0, 0, 0.1)';
+                        }
                     }
                 };
             }
@@ -522,12 +938,45 @@ async function loadPerformanceChart() {
                                         return `${label}: ${formatCurrency(value)}`;
                                     } else if (label === 'Daily Change ($)') {
                                         const sign = value >= 0 ? '+' : '';
-                                        return `${label}: ${sign}${formatCurrency(value)}`;
+                                        const color = value >= 0 ? '🟢' : '🔴';
+                                        return `${color} ${label}: ${sign}${formatCurrency(value)}`;
                                     } else if (label === 'Daily Change (%)') {
                                         const sign = value >= 0 ? '+' : '';
-                                        return `${label}: ${sign}${value.toFixed(2)}%`;
+                                        const color = value >= 0 ? '🟢' : '🔴';
+                                        return `${color} ${label}: ${sign}${value.toFixed(2)}%`;
                                     }
                                     return `${label}: ${value}`;
+                                },
+                                labelColor: function(context) {
+                                    const value = context.parsed.y;
+                                    if (context.dataset.label === 'Portfolio Value') {
+                                        const initialValue = context.dataset.data[0] || 0;
+                                        return {
+                                            borderColor: value >= initialValue ? '#007bff' : '#dc3545',
+                                            backgroundColor: value >= initialValue ? '#007bff' : '#dc3545'
+                                        };
+                                    } else {
+                                        return {
+                                            borderColor: value >= 0 ? '#28a745' : '#dc3545',
+                                            backgroundColor: value >= 0 ? '#28a745' : '#dc3545'
+                                        };
+                                    }
+                                }
+                            }
+                        },
+                        legend: {
+                            labels: {
+                                generateLabels: function(chart) {
+                                    const original = Chart.defaults.plugins.legend.labels.generateLabels;
+                                    const labels = original.call(this, chart);
+                                    
+                                    labels.forEach(label => {
+                                        if (label.text.includes('Daily Change')) {
+                                            label.text = `${label.text} (🟢 Gain / 🔴 Loss)`;
+                                        }
+                                    });
+                                    
+                                    return labels;
                                 }
                             }
                         }
@@ -539,6 +988,271 @@ async function loadPerformanceChart() {
         console.error('Failed to load performance chart:', error);
     }
 }
+
+// async function loadPerformanceChart() {
+//     if (!currentPortfolio) return;
+    
+//     try {
+//         const response = await api.getPortfolioPerformance(currentPortfolio.id, 30);
+//         if (response.success) {
+//             let performanceData = response.data.performance;
+            
+//             // If no historical data, create a simple chart with current portfolio value
+//             if (!performanceData || performanceData.length === 0) {
+//                 const currentDate = new Date();
+//                 const currentValue = currentPortfolio.total_value || 0;
+                
+//                 // Create a simple 7-day chart with current value
+//                 performanceData = [];
+//                 for (let i = 6; i >= 0; i--) {
+//                     const date = new Date(currentDate);
+//                     date.setDate(date.getDate() - i);
+//                     performanceData.push({
+//                         date: date.toISOString().split('T')[0],
+//                         total_value: currentValue,
+//                         daily_change: 0,
+//                         daily_change_percent: 0
+//                     });
+//                 }
+//             }
+            
+//             const ctx = document.getElementById('performanceChart').getContext('2d');
+            
+//             if (performanceChart) {
+//                 performanceChart.destroy();
+//             }
+            
+//             // Get selected view mode from dropdown
+//             const viewMode = document.getElementById('performanceViewSelect')?.value || 'value';
+//             const viewModes = viewMode === 'all' ? ['value', 'change', 'percent'] : viewMode.split(',');
+            
+//             // Build datasets based on selected view modes
+//             const datasets = [];
+            
+//             // Always show portfolio value if selected
+//             if (viewModes.includes('value')) {
+//                 datasets.push({
+//                     label: 'Portfolio Value',
+//                     data: performanceData.map(p => parseFloat(p.total_value) || 0),
+//                     borderColor: '#007bff',
+//                     backgroundColor: 'rgba(0, 123, 255, 0.1)',
+//                     borderWidth: 2,
+//                     fill: true,
+//                     tension: 0.4,
+//                     yAxisID: 'y'
+//                 });
+//             }
+            
+//             // Add daily change dataset if selected
+//             if (viewModes.includes('change')) {
+//                 datasets.push({
+//                     label: 'Daily Change ($)',
+//                     data: performanceData.map(p => parseFloat(p.daily_change) || 0),
+//                     borderColor: '#28a745',
+//                     backgroundColor: 'rgba(40, 167, 69, 0.1)',
+//                     borderWidth: 2,
+//                     fill: false,
+//                     tension: 0.4,
+//                     yAxisID: viewModes.includes('value') ? 'y1' : 'y'
+//                 });
+//             }
+            
+//             // Add daily change percent dataset if selected
+//             if (viewModes.includes('percent')) {
+//                 datasets.push({
+//                     label: 'Daily Change (%)',
+//                     data: performanceData.map(p => parseFloat(p.daily_change_percent) || 0),
+//                     borderColor: '#17a2b8',
+//                     backgroundColor: 'rgba(23, 162, 184, 0.1)',
+//                     borderWidth: 2,
+//                     fill: false,
+//                     tension: 0.4,
+//                     yAxisID: (viewModes.includes('value') || viewModes.includes('change')) ? 'y2' : 'y'
+//                 });
+//             }
+            
+//             // Configure chart scales based on visible datasets
+//             const scales = {};
+            
+//             // Primary y-axis (left side)
+//             if (viewModes.includes('value')) {
+//                 scales.y = {
+//                     type: 'linear',
+//                     display: true,
+//                     position: 'left',
+//                     beginAtZero: false,
+//                     title: {
+//                         display: true,
+//                         text: 'Portfolio Value'
+//                     },
+//                     ticks: {
+//                         callback: function(value) {
+//                             return formatCurrency(value);
+//                         }
+//                     }
+//                 };
+//             } else if (viewModes.includes('change') && !viewModes.includes('percent')) {
+//                 scales.y = {
+//                     type: 'linear',
+//                     display: true,
+//                     position: 'left',
+//                     title: {
+//                         display: true,
+//                         text: 'Daily Change ($)'
+//                     },
+//                     ticks: {
+//                         callback: function(value) {
+//                             return formatCurrency(value);
+//                         }
+//                     }
+//                 };
+//             } else if (viewModes.includes('percent') && !viewModes.includes('change')) {
+//                 scales.y = {
+//                     type: 'linear',
+//                     display: true,
+//                     position: 'left',
+//                     title: {
+//                         display: true,
+//                         text: 'Daily Change (%)'
+//                     },
+//                     ticks: {
+//                         callback: function(value) {
+//                             return value.toFixed(2) + '%';
+//                         }
+//                     }
+//                 };
+//             }
+            
+//             // Secondary y-axis (right side)
+//             if (viewModes.includes('value') && viewModes.includes('change')) {
+//                 scales.y1 = {
+//                     type: 'linear',
+//                     display: true,
+//                     position: 'right',
+//                     title: {
+//                         display: true,
+//                         text: 'Daily Change ($)'
+//                     },
+//                     ticks: {
+//                         callback: function(value) {
+//                             return formatCurrency(value);
+//                         }
+//                     },
+//                     grid: {
+//                         drawOnChartArea: false
+//                     }
+//                 };
+//             } else if (viewModes.includes('value') && viewModes.includes('percent')) {
+//                 scales.y1 = {
+//                     type: 'linear',
+//                     display: true,
+//                     position: 'right',
+//                     title: {
+//                         display: true,
+//                         text: 'Daily Change (%)'
+//                     },
+//                     ticks: {
+//                         callback: function(value) {
+//                             return value.toFixed(2) + '%';
+//                         }
+//                     },
+//                     grid: {
+//                         drawOnChartArea: false
+//                     }
+//                 };
+//             } else if (viewModes.includes('change') && viewModes.includes('percent') && !viewModes.includes('value')) {
+//                 scales.y = {
+//                     type: 'linear',
+//                     display: true,
+//                     position: 'left',
+//                     title: {
+//                         display: true,
+//                         text: 'Daily Change ($)'
+//                     },
+//                     ticks: {
+//                         callback: function(value) {
+//                             return formatCurrency(value);
+//                         }
+//                     }
+//                 };
+//                 scales.y1 = {
+//                     type: 'linear',
+//                     display: true,
+//                     position: 'right',
+//                     title: {
+//                         display: true,
+//                         text: 'Daily Change (%)'
+//                     },
+//                     ticks: {
+//                         callback: function(value) {
+//                             return value.toFixed(2) + '%';
+//                         }
+//                     },
+//                     grid: {
+//                         drawOnChartArea: false
+//                     }
+//                 };
+//             }
+            
+//             // Third y-axis for "all" option
+//             if (viewModes.length === 3 || viewMode === 'all') {
+//                 scales.y2 = {
+//                     type: 'linear',
+//                     display: false, // Hide to avoid clutter
+//                     position: 'right',
+//                     ticks: {
+//                         callback: function(value) {
+//                             return value.toFixed(2) + '%';
+//                         }
+//                     },
+//                     grid: {
+//                         drawOnChartArea: false
+//                     }
+//                 };
+//             }
+            
+//             performanceChart = new Chart(ctx, {
+//                 type: 'line',
+//                 data: {
+//                     labels: performanceData.map(p => formatDate(p.date)),
+//                     datasets: datasets
+//                 },
+//                 options: {
+//                     responsive: true,
+//                     maintainAspectRatio: false,
+//                     interaction: {
+//                         mode: 'index',
+//                         intersect: false
+//                     },
+//                     scales: scales,
+//                     plugins: {
+//                         tooltip: {
+//                             callbacks: {
+//                                 label: function(context) {
+//                                     const label = context.dataset.label;
+//                                     const value = context.parsed.y;
+                                    
+//                                     if (label === 'Portfolio Value') {
+//                                         return `${label}: ${formatCurrency(value)}`;
+//                                     } else if (label === 'Daily Change ($)') {
+//                                         const sign = value >= 0 ? '+' : '';
+//                                         return `${label}: ${sign}${formatCurrency(value)}`;
+//                                     } else if (label === 'Daily Change (%)') {
+//                                         const sign = value >= 0 ? '+' : '';
+//                                         return `${label}: ${sign}${value.toFixed(2)}%`;
+//                                     }
+//                                     return `${label}: ${value}`;
+//                                 }
+//                             }
+//                         }
+//                     }
+//                 }
+//             });
+//         }
+//     } catch (error) {
+//         console.error('Failed to load performance chart:', error);
+//     }
+// }
 
 async function loadAllocationChart() {
     if (!currentPortfolio) return;
@@ -1243,13 +1957,13 @@ async function handleSellShares() {
                 portfolio_id: parseInt(currentItem.portfolio_id),
                 transaction_type: 'sell',
                 symbol: currentItem.symbol,
-                asset_name: currentItem.name,
+                asset_name: currentItem.name || currentItem.symbol, // Fallback to symbol if name is null
                 quantity: currentQuantity, // Use actual quantity being sold
                 price_per_unit: sellPrice,
                 total_amount: currentQuantity * sellPrice,
                 fees: 0,
                 transaction_date: sellDate,
-                description: `Complete sale of ${currentItem.name} (${currentItem.symbol})`,
+                description: `Complete sale of ${currentItem.name || currentItem.symbol} (${currentItem.symbol})`,
                 status: 'completed'
             };
             
@@ -1276,13 +1990,13 @@ async function handleSellShares() {
                 portfolio_id: parseInt(currentItem.portfolio_id),
                 transaction_type: 'sell',
                 symbol: currentItem.symbol,
-                asset_name: currentItem.name,
+                asset_name: currentItem.name || currentItem.symbol, // Fallback to symbol if name is null
                 quantity: sellQuantity,
                 price_per_unit: sellPrice,
                 total_amount: sellQuantity * sellPrice,
                 fees: 0,
                 transaction_date: sellDate,
-                description: `Partial sale of ${currentItem.name} (${currentItem.symbol})`,
+                description: `Partial sale of ${currentItem.name || currentItem.symbol} (${currentItem.symbol})`,
                 status: 'completed'
             };
             
@@ -1520,7 +2234,12 @@ document.getElementById('portfolioListSearchInput').addEventListener('keydown', 
         document.getElementById('portfolioListSearchBtn').click();
     }
 });
-// new here
+
+// Cleanup on page unload
+window.addEventListener('beforeunload', function() {
+    cleanupMarketIndices();
+});
+
 
 // My Portfolios splite page
 const myPortfoliosPerPage = 6;
@@ -1638,4 +2357,3 @@ async function loadPortfoliosSection() {
         console.error('Failed to load portfolios section:', error);
     }
 }
-

@@ -6,7 +6,7 @@ class Transaction {
     let query = `
       SELECT t.*, 
              p.name as portfolio_name,
-             pi.name as asset_name
+             COALESCE(t.asset_name, pi.name, t.symbol) as asset_name
       FROM transactions t
       LEFT JOIN portfolios p ON t.portfolio_id = p.id
       LEFT JOIN portfolio_items pi ON t.portfolio_item_id = pi.id
@@ -67,7 +67,7 @@ class Transaction {
     const [rows] = await pool.execute(`
       SELECT t.*, 
              p.name as portfolio_name,
-             pi.name as asset_name
+             COALESCE(t.asset_name, pi.name, t.symbol) as asset_name
       FROM transactions t
       LEFT JOIN portfolios p ON t.portfolio_id = p.id
       LEFT JOIN portfolio_items pi ON t.portfolio_item_id = pi.id
@@ -81,7 +81,7 @@ class Transaction {
     let query = `
       SELECT t.*, 
              p.name as portfolio_name,
-             pi.name as asset_name
+             COALESCE(t.asset_name, pi.name, t.symbol) as asset_name
       FROM transactions t
       LEFT JOIN portfolios p ON t.portfolio_id = p.id
       LEFT JOIN portfolio_items pi ON t.portfolio_item_id = pi.id
@@ -227,7 +227,7 @@ class Transaction {
     let query = `
       SELECT t.*, 
              p.name as portfolio_name,
-             pi.name as asset_name
+             COALESCE(t.asset_name, pi.name, t.symbol) as asset_name
       FROM transactions t
       LEFT JOIN portfolios p ON t.portfolio_id = p.id
       LEFT JOIN portfolio_items pi ON t.portfolio_item_id = pi.id

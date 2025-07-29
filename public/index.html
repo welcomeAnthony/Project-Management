@@ -13,6 +13,20 @@
     <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
         <div class="container-fluid">
             <a class="navbar-brand" href="#"><i class="fas fa-chart-line me-2"></i>Portfolio Manager</a>
+            
+            <!-- Market Indices Flip Display -->
+            <div class="market-indices-container d-flex">
+                <div class="market-flip-display" id="marketFlipDisplay">
+                    <div class="flip-item" data-index="0">
+                        <div class="flip-content">
+                            <span class="index-name">Loading...</span>
+                            <span class="index-value">--</span>
+                            <span class="index-change">--</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
                 <span class="navbar-toggler-icon"></span>
             </button>

@@ -186,6 +186,17 @@ async function createDatabase() {
     }
 
     console.log('Database migration completed successfully!');
+    
+    // Fix any existing transactions with null or empty asset_name
+    console.log('Fixing any existing transactions with missing asset names...');
+    await dbConnection.execute(`
+      UPDATE transactions 
+      SET asset_name = symbol 
+      WHERE asset_name IS NULL OR asset_name = '' OR TRIM(asset_name) = ''
+    `);
+    
+    console.log('Asset name cleanup completed!');
+    
     await dbConnection.end();
   } catch (error) {
     console.error('Migration failed:', error);
