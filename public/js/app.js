@@ -4,6 +4,7 @@ let currentPortfolio = null;
 let performanceChart = null;
 let allocationChart = null;
 let currentEditItemId = null;
+let currentEditPortfolioId = null;
 
 // Market indices variables
 let marketIndicesData = [];
