@@ -487,3 +487,14 @@ body {
     opacity: 0.9;
     margin-bottom: 0;
 }
+
+/* Performance chart dropdown selector */
+#performanceViewSelect {
+    min-width: 200px;
+    font-size: 0.875rem;
+}
+
+#performanceViewSelect:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+}

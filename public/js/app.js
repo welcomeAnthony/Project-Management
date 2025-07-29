@@ -295,7 +295,9 @@ async function loadPerformanceChart() {
                     date.setDate(date.getDate() - i);
                     performanceData.push({
                         date: date.toISOString().split('T')[0],
-                        total_value: currentValue
+                        total_value: currentValue,
+                        daily_change: 0,
+                        daily_change_percent: 0
                     });
                 }
             }
@@ -306,38 +308,226 @@ async function loadPerformanceChart() {
                 performanceChart.destroy();
             }
             
+            // Get selected view mode from dropdown
+            const viewMode = document.getElementById('performanceViewSelect')?.value || 'value';
+            const viewModes = viewMode === 'all' ? ['value', 'change', 'percent'] : viewMode.split(',');
+            
+            // Build datasets based on selected view modes
+            const datasets = [];
+            
+            // Always show portfolio value if selected
+            if (viewModes.includes('value')) {
+                datasets.push({
+                    label: 'Portfolio Value',
+                    data: performanceData.map(p => parseFloat(p.total_value) || 0),
+                    borderColor: '#007bff',
+                    backgroundColor: 'rgba(0, 123, 255, 0.1)',
+                    borderWidth: 2,
+                    fill: true,
+                    tension: 0.4,
+                    yAxisID: 'y'
+                });
+            }
+            
+            // Add daily change dataset if selected
+            if (viewModes.includes('change')) {
+                datasets.push({
+                    label: 'Daily Change ($)',
+                    data: performanceData.map(p => parseFloat(p.daily_change) || 0),
+                    borderColor: '#28a745',
+                    backgroundColor: 'rgba(40, 167, 69, 0.1)',
+                    borderWidth: 2,
+                    fill: false,
+                    tension: 0.4,
+                    yAxisID: viewModes.includes('value') ? 'y1' : 'y'
+                });
+            }
+            
+            // Add daily change percent dataset if selected
+            if (viewModes.includes('percent')) {
+                datasets.push({
+                    label: 'Daily Change (%)',
+                    data: performanceData.map(p => parseFloat(p.daily_change_percent) || 0),
+                    borderColor: '#17a2b8',
+                    backgroundColor: 'rgba(23, 162, 184, 0.1)',
+                    borderWidth: 2,
+                    fill: false,
+                    tension: 0.4,
+                    yAxisID: (viewModes.includes('value') || viewModes.includes('change')) ? 'y2' : 'y'
+                });
+            }
+            
+            // Configure chart scales based on visible datasets
+            const scales = {};
+            
+            // Primary y-axis (left side)
+            if (viewModes.includes('value')) {
+                scales.y = {
+                    type: 'linear',
+                    display: true,
+                    position: 'left',
+                    beginAtZero: false,
+                    title: {
+                        display: true,
+                        text: 'Portfolio Value'
+                    },
+                    ticks: {
+                        callback: function(value) {
+                            return formatCurrency(value);
+                        }
+                    }
+                };
+            } else if (viewModes.includes('change') && !viewModes.includes('percent')) {
+                scales.y = {
+                    type: 'linear',
+                    display: true,
+                    position: 'left',
+                    title: {
+                        display: true,
+                        text: 'Daily Change ($)'
+                    },
+                    ticks: {
+                        callback: function(value) {
+                            return formatCurrency(value);
+                        }
+                    }
+                };
+            } else if (viewModes.includes('percent') && !viewModes.includes('change')) {
+                scales.y = {
+                    type: 'linear',
+                    display: true,
+                    position: 'left',
+                    title: {
+                        display: true,
+                        text: 'Daily Change (%)'
+                    },
+                    ticks: {
+                        callback: function(value) {
+                            return value.toFixed(2) + '%';
+                        }
+                    }
+                };
+            }
+            
+            // Secondary y-axis (right side)
+            if (viewModes.includes('value') && viewModes.includes('change')) {
+                scales.y1 = {
+                    type: 'linear',
+                    display: true,
+                    position: 'right',
+                    title: {
+                        display: true,
+                        text: 'Daily Change ($)'
+                    },
+                    ticks: {
+                        callback: function(value) {
+                            return formatCurrency(value);
+                        }
+                    },
+                    grid: {
+                        drawOnChartArea: false
+                    }
+                };
+            } else if (viewModes.includes('value') && viewModes.includes('percent')) {
+                scales.y1 = {
+                    type: 'linear',
+                    display: true,
+                    position: 'right',
+                    title: {
+                        display: true,
+                        text: 'Daily Change (%)'
+                    },
+                    ticks: {
+                        callback: function(value) {
+                            return value.toFixed(2) + '%';
+                        }
+                    },
+                    grid: {
+                        drawOnChartArea: false
+                    }
+                };
+            } else if (viewModes.includes('change') && viewModes.includes('percent') && !viewModes.includes('value')) {
+                scales.y = {
+                    type: 'linear',
+                    display: true,
+                    position: 'left',
+                    title: {
+                        display: true,
+                        text: 'Daily Change ($)'
+                    },
+                    ticks: {
+                        callback: function(value) {
+                            return formatCurrency(value);
+                        }
+                    }
+                };
+                scales.y1 = {
+                    type: 'linear',
+                    display: true,
+                    position: 'right',
+                    title: {
+                        display: true,
+                        text: 'Daily Change (%)'
+                    },
+                    ticks: {
+                        callback: function(value) {
+                            return value.toFixed(2) + '%';
+                        }
+                    },
+                    grid: {
+                        drawOnChartArea: false
+                    }
+                };
+            }
+            
+            // Third y-axis for "all" option
+            if (viewModes.length === 3 || viewMode === 'all') {
+                scales.y2 = {
+                    type: 'linear',
+                    display: false, // Hide to avoid clutter
+                    position: 'right',
+                    ticks: {
+                        callback: function(value) {
+                            return value.toFixed(2) + '%';
+                        }
+                    },
+                    grid: {
+                        drawOnChartArea: false
+                    }
+                };
+            }
+            
             performanceChart = new Chart(ctx, {
                 type: 'line',
                 data: {
                     labels: performanceData.map(p => formatDate(p.date)),
-                    datasets: [{
-                        label: 'Portfolio Value',
-                        data: performanceData.map(p => parseFloat(p.total_value) || 0),
-                        borderColor: '#007bff',
-                        backgroundColor: 'rgba(0, 123, 255, 0.1)',
-                        borderWidth: 2,
-                        fill: true,
-                        tension: 0.4
-                    }]
+                    datasets: datasets
                 },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
-                    scales: {
-                        y: {
-                            beginAtZero: false,
-                            ticks: {
-                                callback: function(value) {
-                                    return formatCurrency(value);
-                                }
-                            }
-                        }
+                    interaction: {
+                        mode: 'index',
+                        intersect: false
                     },
+                    scales: scales,
                     plugins: {
                         tooltip: {
                             callbacks: {
                                 label: function(context) {
-                                    return `Value: ${formatCurrency(context.parsed.y)}`;
+                                    const label = context.dataset.label;
+                                    const value = context.parsed.y;
+                                    
+                                    if (label === 'Portfolio Value') {
+                                        return `${label}: ${formatCurrency(value)}`;
+                                    } else if (label === 'Daily Change ($)') {
+                                        const sign = value >= 0 ? '+' : '';
+                                        return `${label}: ${sign}${formatCurrency(value)}`;
+                                    } else if (label === 'Daily Change (%)') {
+                                        const sign = value >= 0 ? '+' : '';
+                                        return `${label}: ${sign}${value.toFixed(2)}%`;
+                                    }
+                                    return `${label}: ${value}`;
                                 }
                             }
                         }
@@ -1120,6 +1310,11 @@ function setupEventListeners() {
         if (portfolioId) {
             await switchToPortfolio(portfolioId);
         }
+    });
+    
+    // Performance chart view selector
+    document.getElementById('performanceViewSelect').addEventListener('change', function() {
+        loadPerformanceChart();
     });
     
     // Event delegation for dynamically created buttons
