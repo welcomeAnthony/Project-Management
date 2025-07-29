@@ -86,8 +86,20 @@
             <div class="row">
                 <div class="col-md-8">
                     <div class="card">
-                        <div class="card-header">
-                            <h5><i class="fas fa-chart-area me-2"></i>Portfolio Performance</h5>
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <h5 class="mb-0"><i class="fas fa-chart-area me-2"></i>Portfolio Performance</h5>
+                            <div class="d-flex align-items-center">
+                                <label class="form-label me-2 mb-0">View:</label>
+                                <select class="form-select" id="performanceViewSelect" style="width: auto;">
+                                    <option value="value">Portfolio Value</option>
+                                    <option value="change">Daily Change ($)</option>
+                                    <option value="percent">Daily Change (%)</option>
+                                    <option value="value,change">Value + Daily Change ($)</option>
+                                    <option value="value,percent">Value + Daily Change (%)</option>
+                                    <option value="change,percent">Daily Change ($ + %)</option>
+                                    <option value="all">All Metrics</option>
+                                </select>
+                            </div>
                         </div>
                         <div class="card-body" style="height: 350px;">
                             <canvas id="performanceChart" style="height: 100% !important; width: 100% !important;"></canvas>
@@ -226,6 +238,14 @@
                         <div class="card-body">
                             <div id="portfoliosList">
                                 <!-- Portfolios will be populated here -->
+                            </div>
+                            <div class="d-flex justify-content-between align-items-center mt-3" id="portfolioPaginationContainer" style="display: none;">
+                                <div class="text-muted">
+                                    <small id="portfolioPaginationInfo">Showing 0 - 0 of 0 items</small>
+                                </div>
+                                <nav aria-label="Portfolios pagination">
+                                    <ul class="pagination pagination-sm mb-0" id="portfolioPaginationControls"></ul>
+                                </nav>
                             </div>
                         </div>
                     </div>
