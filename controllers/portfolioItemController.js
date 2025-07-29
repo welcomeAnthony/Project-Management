@@ -78,13 +78,13 @@ class PortfolioItemController {
         portfolio_item_id: item.id,
         transaction_type: 'buy',
         symbol: item.symbol,
-        asset_name: item.name,
+        asset_name: item.name || item.symbol, // Add fallback here too
         quantity: item.quantity,
         price_per_unit: item.purchase_price,
         total_amount: item.quantity * item.purchase_price,
         fees: 0,
         transaction_date: item.purchase_date,
-        description: `Initial purchase of ${item.name} (${item.symbol})`,
+        description: `Initial purchase of ${item.name || item.symbol} (${item.symbol})`,
         status: 'completed'
       };
       
