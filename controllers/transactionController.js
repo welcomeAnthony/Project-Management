@@ -130,6 +130,11 @@ class TransactionController {
     try {
       const transactionData = req.validatedBody;
 
+      // Ensure asset_name is not null or empty, use symbol as fallback
+      if (!transactionData.asset_name || transactionData.asset_name.trim() === '' || transactionData.asset_name === 'null') {
+        transactionData.asset_name = transactionData.symbol;
+      }
+
       // Verify portfolio exists
       const portfolio = await Portfolio.findById(transactionData.portfolio_id);
       if (!portfolio) {

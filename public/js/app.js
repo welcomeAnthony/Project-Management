@@ -1957,13 +1957,13 @@ async function handleSellShares() {
                 portfolio_id: parseInt(currentItem.portfolio_id),
                 transaction_type: 'sell',
                 symbol: currentItem.symbol,
-                asset_name: currentItem.name,
+                asset_name: currentItem.name || currentItem.symbol, // Fallback to symbol if name is null
                 quantity: currentQuantity, // Use actual quantity being sold
                 price_per_unit: sellPrice,
                 total_amount: currentQuantity * sellPrice,
                 fees: 0,
                 transaction_date: sellDate,
-                description: `Complete sale of ${currentItem.name} (${currentItem.symbol})`,
+                description: `Complete sale of ${currentItem.name || currentItem.symbol} (${currentItem.symbol})`,
                 status: 'completed'
             };
             
@@ -1990,13 +1990,13 @@ async function handleSellShares() {
                 portfolio_id: parseInt(currentItem.portfolio_id),
                 transaction_type: 'sell',
                 symbol: currentItem.symbol,
-                asset_name: currentItem.name,
+                asset_name: currentItem.name || currentItem.symbol, // Fallback to symbol if name is null
                 quantity: sellQuantity,
                 price_per_unit: sellPrice,
                 total_amount: sellQuantity * sellPrice,
                 fees: 0,
                 transaction_date: sellDate,
-                description: `Partial sale of ${currentItem.name} (${currentItem.symbol})`,
+                description: `Partial sale of ${currentItem.name || currentItem.symbol} (${currentItem.symbol})`,
                 status: 'completed'
             };
             
