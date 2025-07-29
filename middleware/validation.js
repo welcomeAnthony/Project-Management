@@ -42,6 +42,37 @@ const priceUpdateSchema = Joi.object({
   price: Joi.number().positive().required()
 });
 
+// Transaction validation schemas
+const transactionSchema = Joi.object({
+  portfolio_id: Joi.number().integer().positive().required(),
+  portfolio_item_id: Joi.number().integer().positive().allow(null),
+  transaction_type: Joi.string().valid('buy', 'sell', 'dividend', 'split', 'transfer', 'fee', 'deposit', 'withdrawal').required(),
+  symbol: Joi.string().min(1).max(20).required(),
+  asset_name: Joi.string().min(1).max(255).required(),
+  quantity: Joi.number().positive().required(),
+  price_per_unit: Joi.number().positive().required(),
+  total_amount: Joi.number().required(), // Can be negative for certain transaction types
+  fees: Joi.number().min(0).default(0),
+  transaction_date: Joi.date().max('now').required(),
+  description: Joi.string().max(1000).allow(null, ''),
+  reference_number: Joi.string().max(100).allow(null, ''),
+  status: Joi.string().valid('pending', 'completed', 'cancelled').default('completed')
+});
+
+const transactionUpdateSchema = Joi.object({
+  transaction_type: Joi.string().valid('buy', 'sell', 'dividend', 'split', 'transfer', 'fee', 'deposit', 'withdrawal'),
+  symbol: Joi.string().min(1).max(20),
+  asset_name: Joi.string().min(1).max(255),
+  quantity: Joi.number().positive(),
+  price_per_unit: Joi.number().positive(),
+  total_amount: Joi.number(),
+  fees: Joi.number().min(0),
+  transaction_date: Joi.date().max('now'),
+  description: Joi.string().max(1000).allow(null, ''),
+  reference_number: Joi.string().max(100).allow(null, ''),
+  status: Joi.string().valid('pending', 'completed', 'cancelled')
+}).min(1);
+
 // Validation middleware factory
 const validateRequest = (schema) => {
   return (req, res, next) => {
@@ -93,13 +124,20 @@ const idParamSchema = Joi.object({
   id: Joi.number().integer().positive().required()
 });
 
+const portfolioIdParamSchema = Joi.object({
+  portfolio_id: Joi.number().integer().positive().required()
+});
+
 module.exports = {
   portfolioSchema,
   portfolioUpdateSchema,
   portfolioItemSchema,
   portfolioItemUpdateSchema,
   priceUpdateSchema,
+  transactionSchema,
+  transactionUpdateSchema,
   idParamSchema,
+  portfolioIdParamSchema,
   validateRequest,
   validateParams
 };

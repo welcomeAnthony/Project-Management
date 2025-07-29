@@ -4,7 +4,6 @@ let currentPortfolio = null;
 let performanceChart = null;
 let allocationChart = null;
 let currentEditItemId = null;
-let currentEditPortfolioId = null;
 
 // Market indices variables
 let marketIndicesData = [];
@@ -25,7 +24,6 @@ async function initializeApp() {
         await loadPortfolios();
         await loadDefaultPortfolio();
         setupEventListeners();
-        setupThemeIntegration();
         showSection('dashboard');
     } catch (error) {
         console.error('Failed to initialize app:', error);
@@ -387,39 +385,14 @@ async function loadDefaultPortfolio() {
             if (dashboardSelect && currentPortfolio) {
                 dashboardSelect.value = currentPortfolio.id;
             }
-        } else {
-            // No portfolios available
-            currentPortfolio = null;
-            
-            // Clear dashboard portfolio selector
-            const dashboardSelect = document.getElementById('dashboardPortfolioSelect');
-            if (dashboardSelect) {
-                dashboardSelect.value = '';
-            }
         }
     } catch (error) {
         console.error('Failed to load default portfolio:', error);
-        currentPortfolio = null;
     }
 }
 
 async function loadPortfolioSummary() {
-    if (!currentPortfolio) {
-        // Clear dashboard when no portfolio selected
-        document.getElementById('totalValue').textContent = '$0.00';
-        document.getElementById('totalGain').textContent = '$0.00';
-        document.getElementById('totalItems').textContent = '0';
-        document.getElementById('gainPercent').textContent = '0.00%';
-        
-        // Reset gain/loss card colors
-        const gainCard = document.getElementById('gainLossCard');
-        const percentCard = document.getElementById('percentCard');
-        gainCard.classList.remove('positive', 'negative', 'neutral');
-        percentCard.classList.remove('positive', 'negative', 'neutral');
-        gainCard.classList.add('neutral');
-        percentCard.classList.add('neutral');
-        return;
-    }
+    if (!currentPortfolio) return;
     
     try {
         const response = await api.getPortfolioSummary(currentPortfolio.id);
@@ -453,11 +426,6 @@ async function loadPortfolioSummary() {
         }
     } catch (error) {
         console.error('Failed to load portfolio summary:', error);
-        // Clear dashboard on error
-        document.getElementById('totalValue').textContent = '$0.00';
-        document.getElementById('totalGain').textContent = '$0.00';
-        document.getElementById('totalItems').textContent = '0';
-        document.getElementById('gainPercent').textContent = '0.00%';
     }
 }
 
@@ -636,7 +604,9 @@ async function loadPerformanceChart() {
                     date.setDate(date.getDate() - i);
                     performanceData.push({
                         date: date.toISOString().split('T')[0],
-                        total_value: currentValue
+                        total_value: currentValue,
+                        daily_change: 0,
+                        daily_change_percent: 0
                     });
                 }
             }
@@ -647,55 +617,226 @@ async function loadPerformanceChart() {
                 performanceChart.destroy();
             }
             
+            // Get selected view mode from dropdown
+            const viewMode = document.getElementById('performanceViewSelect')?.value || 'value';
+            const viewModes = viewMode === 'all' ? ['value', 'change', 'percent'] : viewMode.split(',');
+            
+            // Build datasets based on selected view modes
+            const datasets = [];
+            
+            // Always show portfolio value if selected
+            if (viewModes.includes('value')) {
+                datasets.push({
+                    label: 'Portfolio Value',
+                    data: performanceData.map(p => parseFloat(p.total_value) || 0),
+                    borderColor: '#007bff',
+                    backgroundColor: 'rgba(0, 123, 255, 0.1)',
+                    borderWidth: 2,
+                    fill: true,
+                    tension: 0.4,
+                    yAxisID: 'y'
+                });
+            }
+            
+            // Add daily change dataset if selected
+            if (viewModes.includes('change')) {
+                datasets.push({
+                    label: 'Daily Change ($)',
+                    data: performanceData.map(p => parseFloat(p.daily_change) || 0),
+                    borderColor: '#28a745',
+                    backgroundColor: 'rgba(40, 167, 69, 0.1)',
+                    borderWidth: 2,
+                    fill: false,
+                    tension: 0.4,
+                    yAxisID: viewModes.includes('value') ? 'y1' : 'y'
+                });
+            }
+            
+            // Add daily change percent dataset if selected
+            if (viewModes.includes('percent')) {
+                datasets.push({
+                    label: 'Daily Change (%)',
+                    data: performanceData.map(p => parseFloat(p.daily_change_percent) || 0),
+                    borderColor: '#17a2b8',
+                    backgroundColor: 'rgba(23, 162, 184, 0.1)',
+                    borderWidth: 2,
+                    fill: false,
+                    tension: 0.4,
+                    yAxisID: (viewModes.includes('value') || viewModes.includes('change')) ? 'y2' : 'y'
+                });
+            }
+            
+            // Configure chart scales based on visible datasets
+            const scales = {};
+            
+            // Primary y-axis (left side)
+            if (viewModes.includes('value')) {
+                scales.y = {
+                    type: 'linear',
+                    display: true,
+                    position: 'left',
+                    beginAtZero: false,
+                    title: {
+                        display: true,
+                        text: 'Portfolio Value'
+                    },
+                    ticks: {
+                        callback: function(value) {
+                            return formatCurrency(value);
+                        }
+                    }
+                };
+            } else if (viewModes.includes('change') && !viewModes.includes('percent')) {
+                scales.y = {
+                    type: 'linear',
+                    display: true,
+                    position: 'left',
+                    title: {
+                        display: true,
+                        text: 'Daily Change ($)'
+                    },
+                    ticks: {
+                        callback: function(value) {
+                            return formatCurrency(value);
+                        }
+                    }
+                };
+            } else if (viewModes.includes('percent') && !viewModes.includes('change')) {
+                scales.y = {
+                    type: 'linear',
+                    display: true,
+                    position: 'left',
+                    title: {
+                        display: true,
+                        text: 'Daily Change (%)'
+                    },
+                    ticks: {
+                        callback: function(value) {
+                            return value.toFixed(2) + '%';
+                        }
+                    }
+                };
+            }
+            
+            // Secondary y-axis (right side)
+            if (viewModes.includes('value') && viewModes.includes('change')) {
+                scales.y1 = {
+                    type: 'linear',
+                    display: true,
+                    position: 'right',
+                    title: {
+                        display: true,
+                        text: 'Daily Change ($)'
+                    },
+                    ticks: {
+                        callback: function(value) {
+                            return formatCurrency(value);
+                        }
+                    },
+                    grid: {
+                        drawOnChartArea: false
+                    }
+                };
+            } else if (viewModes.includes('value') && viewModes.includes('percent')) {
+                scales.y1 = {
+                    type: 'linear',
+                    display: true,
+                    position: 'right',
+                    title: {
+                        display: true,
+                        text: 'Daily Change (%)'
+                    },
+                    ticks: {
+                        callback: function(value) {
+                            return value.toFixed(2) + '%';
+                        }
+                    },
+                    grid: {
+                        drawOnChartArea: false
+                    }
+                };
+            } else if (viewModes.includes('change') && viewModes.includes('percent') && !viewModes.includes('value')) {
+                scales.y = {
+                    type: 'linear',
+                    display: true,
+                    position: 'left',
+                    title: {
+                        display: true,
+                        text: 'Daily Change ($)'
+                    },
+                    ticks: {
+                        callback: function(value) {
+                            return formatCurrency(value);
+                        }
+                    }
+                };
+                scales.y1 = {
+                    type: 'linear',
+                    display: true,
+                    position: 'right',
+                    title: {
+                        display: true,
+                        text: 'Daily Change (%)'
+                    },
+                    ticks: {
+                        callback: function(value) {
+                            return value.toFixed(2) + '%';
+                        }
+                    },
+                    grid: {
+                        drawOnChartArea: false
+                    }
+                };
+            }
+            
+            // Third y-axis for "all" option
+            if (viewModes.length === 3 || viewMode === 'all') {
+                scales.y2 = {
+                    type: 'linear',
+                    display: false, // Hide to avoid clutter
+                    position: 'right',
+                    ticks: {
+                        callback: function(value) {
+                            return value.toFixed(2) + '%';
+                        }
+                    },
+                    grid: {
+                        drawOnChartArea: false
+                    }
+                };
+            }
+            
             performanceChart = new Chart(ctx, {
                 type: 'line',
                 data: {
                     labels: performanceData.map(p => formatDate(p.date)),
-                    datasets: [{
-                        label: 'Portfolio Value',
-                        data: performanceData.map(p => parseFloat(p.total_value) || 0),
-                        borderColor: '#007bff',
-                        backgroundColor: 'rgba(0, 123, 255, 0.1)',
-                        borderWidth: 2,
-                        fill: true,
-                        tension: 0.4
-                    }]
+                    datasets: datasets
                 },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
-                    scales: {
-                        x: {
-                            ticks: {
-                                color: document.documentElement.getAttribute('data-theme') === 'dark' ? '#ffffff' : '#212529'
-                            },
-                            grid: {
-                                color: document.documentElement.getAttribute('data-theme') === 'dark' ? '#495057' : '#dee2e6'
-                            }
-                        },
-                        y: {
-                            beginAtZero: false,
-                            ticks: {
-                                color: document.documentElement.getAttribute('data-theme') === 'dark' ? '#ffffff' : '#212529',
-                                callback: function(value) {
-                                    return formatCurrency(value);
-                                }
-                            },
-                            grid: {
-                                color: document.documentElement.getAttribute('data-theme') === 'dark' ? '#495057' : '#dee2e6'
-                            }
-                        }
+                    interaction: {
+                        mode: 'index',
+                        intersect: false
                     },
+                    scales: scales,
                     plugins: {
-                        legend: {
-                            labels: {
-                                color: document.documentElement.getAttribute('data-theme') === 'dark' ? '#ffffff' : '#212529'
-                            }
-                        },
                         tooltip: {
                             callbacks: {
                                 label: function(context) {
-                                    return `Value: ${formatCurrency(context.parsed.y)}`;
+                                    const label = context.dataset.label;
+                                    const value = context.parsed.y;
+                                    
+                                    if (label === 'Portfolio Value') {
+                                        return `${label}: ${formatCurrency(value)}`;
+                                    } else if (label === 'Daily Change ($)') {
+                                        const sign = value >= 0 ? '+' : '';
+                                        return `${label}: ${sign}${formatCurrency(value)}`;
+                                    } else if (label === 'Daily Change (%)') {
+                                        const sign = value >= 0 ? '+' : '';
+                                        return `${label}: ${sign}${value.toFixed(2)}%`;
+                                    }
+                                    return `${label}: ${value}`;
                                 }
                             }
                         }
@@ -743,10 +884,7 @@ async function loadAllocationChart() {
                     maintainAspectRatio: false,
                     plugins: {
                         legend: {
-                            position: 'bottom',
-                            labels: {
-                                color: document.documentElement.getAttribute('data-theme') === 'dark' ? '#ffffff' : '#212529'
-                            }
+                            position: 'bottom'
                         },
                         tooltip: {
                             callbacks: {
@@ -783,58 +921,32 @@ function updatePortfolioSelect(portfolios) {
     const select = document.getElementById('portfolioSelect');
     select.innerHTML = '<option value="">Select Portfolio</option>';
     
-    // Update the Dashboard portfolio selector
-    const dashboardSelect = document.getElementById('dashboardPortfolioSelect');
-    if (dashboardSelect) {
-        dashboardSelect.innerHTML = '<option value="">Select Portfolio...</option>';
-    }
-    
-    // If no portfolios exist, show appropriate message
-    if (!portfolios || portfolios.length === 0) {
-        const noPortfolioOption = document.createElement('option');
-        noPortfolioOption.value = '';
-        noPortfolioOption.textContent = 'No portfolios available';
-        noPortfolioOption.disabled = true;
-        select.appendChild(noPortfolioOption);
-        
-        if (dashboardSelect) {
-            const noDashboardOption = document.createElement('option');
-            noDashboardOption.value = '';
-            noDashboardOption.textContent = 'No portfolios available';
-            noDashboardOption.disabled = true;
-            dashboardSelect.appendChild(noDashboardOption);
-        }
-        return;
-    }
-    
     portfolios.forEach(portfolio => {
-        // Add to Add Item form selector
         const option = document.createElement('option');
         option.value = portfolio.id;
         option.textContent = portfolio.name;
         select.appendChild(option);
-        
-        // Add to Dashboard selector
-        if (dashboardSelect) {
-            const dashOption = document.createElement('option');
-            dashOption.value = portfolio.id;
-            dashOption.textContent = portfolio.name;
-            if (currentPortfolio && portfolio.id === currentPortfolio.id) {
-                dashOption.selected = true;
-            }
-            dashboardSelect.appendChild(dashOption);
-        }
     });
+    
+    // Update the Dashboard portfolio selector
+    const dashboardSelect = document.getElementById('dashboardPortfolioSelect');
+    if (dashboardSelect) {
+        dashboardSelect.innerHTML = '<option value="">Select Portfolio...</option>';
+        
+        portfolios.forEach(portfolio => {
+            const option = document.createElement('option');
+            option.value = portfolio.id;
+            option.textContent = portfolio.name;
+            if (currentPortfolio && portfolio.id === currentPortfolio.id) {
+                option.selected = true;
+            }
+            dashboardSelect.appendChild(option);
+        });
+    }
 }
 
 async function loadPortfoliosSection() {
     try {
-        // Initialize portfolio details section
-        const portfolioDetailsContainer = document.getElementById('portfolioDetails');
-        if (portfolioDetailsContainer) {
-            portfolioDetailsContainer.innerHTML = '<p class="text-muted">Select a portfolio to view details</p>';
-        }
-        
         const response = await api.getPortfolios();
         if (response.success) {
             displayPortfoliosList(response.data);
@@ -863,21 +975,7 @@ async function switchToPortfolio(portfolioId) {
 
 function displayPortfoliosList(portfolios) {
     const container = document.getElementById('portfoliosList');
-    const portfolioDetailsContainer = document.getElementById('portfolioDetails');
     container.innerHTML = '';
-    
-    // If no portfolios exist, show message and clear details
-    if (!portfolios || portfolios.length === 0) {
-        container.innerHTML = `
-            <div class="text-center py-5">
-                <i class="fas fa-folder-open fa-3x text-muted mb-3"></i>
-                <h5 class="text-muted">No Portfolios Found</h5>
-                <p class="text-muted">Create your first portfolio to get started</p>
-            </div>
-        `;
-        portfolioDetailsContainer.innerHTML = '<p class="text-muted">No portfolio selected</p>';
-        return;
-    }
     
     portfolios.forEach(portfolio => {
         const card = document.createElement('div');
@@ -1004,78 +1102,14 @@ async function createPortfolio() {
 // Portfolio edit and delete functions
 async function editPortfolio(portfolioId) {
     try {
-        // Get the portfolio details first
-        const portfolioResponse = await api.getPortfolio(portfolioId);
-        if (!portfolioResponse.success) {
-            showAlert('Failed to get portfolio details', 'danger');
-            return;
-        }
-        
-        const portfolio = portfolioResponse.data;
-        currentEditPortfolioId = portfolioId;
-        
-        // Show the edit modal with current data
-        showEditPortfolioModal(portfolio);
-    } catch (error) {
-        showAlert(error.message, 'danger');
-    }
-}
-
-function showEditPortfolioModal(portfolio) {
-    const modal = new bootstrap.Modal(document.getElementById('editPortfolioModal'));
-    const form = document.getElementById('editPortfolioForm');
-    
-    // Populate the form with current data
-    document.getElementById('editPortfolioName').value = portfolio.name;
-    document.getElementById('editPortfolioDescription').value = portfolio.description || '';
-    
-    // Clear any previous validation
-    clearFormValidation(form);
-    
-    modal.show();
-}
-
-async function updatePortfolio() {
-    const form = document.getElementById('editPortfolioForm');
-    
-    const portfolioData = {
-        name: document.getElementById('editPortfolioName').value.trim(),
-        description: document.getElementById('editPortfolioDescription').value.trim()
-    };
-    
-    // Validate form
-    const errors = validateForm(form, {
-        editPortfolioName: [{ required: true, label: 'Portfolio Name' }]
-    });
-    
-    if (errors.length > 0) {
-        showAlert(errors.join('<br>'), 'danger');
-        return;
-    }
-    
-    try {
-        const response = await api.updatePortfolio(currentEditPortfolioId, portfolioData);
-        if (response.success) {
+        // For now, show an alert - you can implement a modal later
+        const portfolioName = prompt('Enter new portfolio name:');
+        if (portfolioName && portfolioName.trim()) {
+            await api.updatePortfolio(portfolioId, { 
+                name: portfolioName.trim(),
+                description: `Updated portfolio: ${portfolioName.trim()}`
+            });
             showAlert('Portfolio updated successfully', 'success');
-            const modal = bootstrap.Modal.getInstance(document.getElementById('editPortfolioModal'));
-            modal.hide();
-            
-            // If this is the currently selected portfolio, update the current portfolio reference
-            if (currentPortfolio && currentPortfolio.id === currentEditPortfolioId) {
-                currentPortfolio.name = portfolioData.name;
-                currentPortfolio.description = portfolioData.description;
-                
-                // Update the dashboard portfolio selector if visible
-                const dashboardSelect = document.getElementById('dashboardPortfolioSelect');
-                if (dashboardSelect) {
-                    const option = dashboardSelect.querySelector(`option[value="${currentEditPortfolioId}"]`);
-                    if (option) {
-                        option.textContent = portfolioData.name;
-                    }
-                }
-            }
-            
-            await loadPortfolios();
             await loadPortfoliosSection();
         }
     } catch (error) {
@@ -1103,30 +1137,9 @@ async function confirmDeletePortfolio(portfolioId) {
         if (confirm(`Are you sure you want to delete the portfolio "${portfolio.name}"? This action cannot be undone.`)) {
             await api.deletePortfolio(portfolioId);
             showAlert('Portfolio deleted successfully', 'success');
-            
-            // Clear portfolio details section
-            const portfolioDetailsContainer = document.getElementById('portfolioDetails');
-            portfolioDetailsContainer.innerHTML = '<p class="text-muted">Select a portfolio to view details</p>';
-            
-            // Remove active state from portfolio cards
-            document.querySelectorAll('.portfolio-card').forEach(card => {
-                card.classList.remove('active');
-            });
-            
-            // Check if this was the current portfolio before clearing the reference
-            const wasCurrentPortfolio = currentPortfolio && currentPortfolio.id === portfolioId;
-            
-            // If this was the current portfolio, clear the reference
-            if (wasCurrentPortfolio) {
-                currentPortfolio = null;
-            }
-            
-            // Always refresh portfolio selectors and lists
-            await loadPortfolios();
             await loadPortfoliosSection();
-            
-            // If this was the current portfolio, reset to default and refresh dashboard
-            if (wasCurrentPortfolio) {
+            // If this was the current portfolio, reset to default
+            if (currentPortfolio && currentPortfolio.id === portfolioId) {
                 await loadDefaultPortfolio();
                 await loadDashboard();
             }
@@ -1298,6 +1311,32 @@ async function handleBuyShares() {
             updateData.current_price = parseFloat(newCurrentPrice);
         }
         
+        // First create the transaction record
+        const transactionData = {
+            portfolio_id: parseInt(currentItem.portfolio_id),
+            transaction_type: 'buy',
+            symbol: currentItem.symbol,
+            asset_name: currentItem.name,
+            quantity: buyQuantity,
+            price_per_unit: buyPrice,
+            total_amount: buyQuantity * buyPrice,
+            fees: 0,
+            transaction_date: buyDate,
+            description: `Additional purchase of ${currentItem.name} (${currentItem.symbol})`,
+            status: 'completed'
+        };
+        
+        const transactionResponse = await fetch('/api/transactions', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(transactionData)
+        });
+        
+        if (!transactionResponse.ok) {
+            throw new Error('Failed to create transaction record');
+        }
+        
+        // Then update the portfolio item
         const updateResponse = await api.updatePortfolioItem(currentEditItemId, updateData);
         if (updateResponse.success) {
             showAlert(`Successfully bought ${buyQuantity} more shares of ${currentItem.symbol}`, 'success');
@@ -1508,6 +1547,31 @@ async function handleSellShares() {
         }
         
         if (sellAll || sellQuantity >= currentQuantity) {
+            // Create sell transaction record for the entire position
+            const transactionData = {
+                portfolio_id: parseInt(currentItem.portfolio_id),
+                transaction_type: 'sell',
+                symbol: currentItem.symbol,
+                asset_name: currentItem.name,
+                quantity: currentQuantity, // Use actual quantity being sold
+                price_per_unit: sellPrice,
+                total_amount: currentQuantity * sellPrice,
+                fees: 0,
+                transaction_date: sellDate,
+                description: `Complete sale of ${currentItem.name} (${currentItem.symbol})`,
+                status: 'completed'
+            };
+            
+            const transactionResponse = await fetch('/api/transactions', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(transactionData)
+            });
+            
+            if (!transactionResponse.ok) {
+                throw new Error('Failed to create transaction record');
+            }
+            
             // Delete the entire position
             const deleteResponse = await api.deletePortfolioItem(currentEditItemId);
             if (deleteResponse.success) {
@@ -1516,6 +1580,31 @@ async function handleSellShares() {
                 await loadDashboard();
             }
         } else {
+            // Create sell transaction record for partial sale
+            const transactionData = {
+                portfolio_id: parseInt(currentItem.portfolio_id),
+                transaction_type: 'sell',
+                symbol: currentItem.symbol,
+                asset_name: currentItem.name,
+                quantity: sellQuantity,
+                price_per_unit: sellPrice,
+                total_amount: sellQuantity * sellPrice,
+                fees: 0,
+                transaction_date: sellDate,
+                description: `Partial sale of ${currentItem.name} (${currentItem.symbol})`,
+                status: 'completed'
+            };
+            
+            const transactionResponse = await fetch('/api/transactions', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(transactionData)
+            });
+            
+            if (!transactionResponse.ok) {
+                throw new Error('Failed to create transaction record');
+            }
+            
             // Reduce quantity
             const newQuantity = currentQuantity - sellQuantity;
             const updateData = {
@@ -1580,11 +1669,6 @@ function setupEventListeners() {
         createPortfolio();
     });
     
-    // Edit portfolio form submit
-    document.getElementById('edit-portfolio-submit').addEventListener('click', function() {
-        updatePortfolio();
-    });
-    
     // Update item form submit
     // Add item form submission
     document.getElementById('addItemForm').addEventListener('submit', function(e) {
@@ -1613,6 +1697,11 @@ function setupEventListeners() {
         }
     });
     
+    // Performance chart view selector
+    document.getElementById('performanceViewSelect').addEventListener('change', function() {
+        loadPerformanceChart();
+    });
+    
     // Event delegation for dynamically created buttons
     document.addEventListener('click', function(e) {
         // Buy more button
@@ -1637,28 +1726,6 @@ function setupEventListeners() {
         if (e.target.closest('.delete-portfolio-btn') && !e.target.closest('.delete-portfolio-btn').disabled) {
             const portfolioId = e.target.closest('.delete-portfolio-btn').dataset.portfolioId;
             confirmDeletePortfolio(parseInt(portfolioId));
-        }
-    });
-    
-    // Portfolio search functionality
-    document.getElementById('portfolioSearchBtn').addEventListener('click', function() {
-        const query = document.getElementById('portfolioSearchInput').value.trim().toLowerCase();
-        if (!query) {
-            displayPortfolioItemsWithPagination(); // 显示全部
-            return;
-        }
-        const filtered = allPortfolioItems.filter(item =>
-            (item.symbol && item.symbol.toLowerCase().includes(query)) ||
-            (item.name && item.name.toLowerCase().includes(query)) ||
-            (item.type && item.type.toLowerCase().includes(query))
-        );
-        displayPortfolioItems(filtered);
-    });
-    
-    // 支持回车搜索
-    document.getElementById('portfolioSearchInput').addEventListener('keydown', function(e) {
-        if (e.key === 'Enter') {
-            document.getElementById('portfolioSearchBtn').click();
         }
     });
 }
@@ -1701,51 +1768,6 @@ async function refreshAll() {
     }
 }
 
-// Theme integration
-function setupThemeIntegration() {
-    // Wait for theme manager to be available
-    if (typeof themeManager !== 'undefined') {
-        // Update charts when theme changes
-        const observer = new MutationObserver(function(mutations) {
-            mutations.forEach(function(mutation) {
-                if (mutation.type === 'attributes' && mutation.attributeName === 'data-theme') {
-                    updateChartsForTheme();
-                }
-            });
-        });
-        
-        observer.observe(document.documentElement, {
-            attributes: true,
-            attributeFilter: ['data-theme']
-        });
-    }
-}
-
-function updateChartsForTheme() {
-    const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
-    
-    // Update performance chart colors
-    if (performanceChart) {
-        const textColor = isDark ? '#ffffff' : '#212529';
-        const gridColor = isDark ? '#495057' : '#dee2e6';
-        
-        performanceChart.options.scales.x.ticks.color = textColor;
-        performanceChart.options.scales.y.ticks.color = textColor;
-        performanceChart.options.scales.x.grid.color = gridColor;
-        performanceChart.options.scales.y.grid.color = gridColor;
-        performanceChart.options.plugins.legend.labels.color = textColor;
-        performanceChart.update();
-    }
-    
-    // Update allocation chart colors
-    if (allocationChart) {
-        const textColor = isDark ? '#ffffff' : '#212529';
-        
-        allocationChart.options.plugins.legend.labels.color = textColor;
-        allocationChart.update();
-    }
-}
-
 //new
 // 假设 allPortfolioItems 存储所有项目，displayPortfolioItems(items) 渲染表格
 document.getElementById('portfolioSearchBtn').addEventListener('click', function() {
@@ -1768,6 +1790,7 @@ document.getElementById('portfolioSearchInput').addEventListener('keydown', func
         document.getElementById('portfolioSearchBtn').click();
     }
 });
+
 
 
 // portfolioListSearch
@@ -1812,4 +1835,120 @@ window.addEventListener('beforeunload', function() {
     cleanupMarketIndices();
 });
 
-// new here
+
+// My Portfolios splite page
+const myPortfoliosPerPage = 6;
+let myPortfoliosCurrentPage = 1;
+
+function renderPortfolioList(portfolios) {
+    const total = portfolios.length;
+    const totalPages = Math.ceil(total / myPortfoliosPerPage);
+
+    if (myPortfoliosCurrentPage > totalPages && totalPages > 0) {
+        myPortfoliosCurrentPage = totalPages;
+    } else if (myPortfoliosCurrentPage < 1) {
+        myPortfoliosCurrentPage = 1;
+    }
+
+    const start = (myPortfoliosCurrentPage - 1) * myPortfoliosPerPage;
+    const end = Math.min(start + myPortfoliosPerPage, total);
+    const pageData = portfolios.slice(start, end);
+
+    displayPortfoliosList(pageData);
+
+    const info = document.getElementById('portfolioPaginationInfo');
+    if (info) {
+        if (total === 0) {
+            info.textContent = `Showing 0 - 0 of 0 items`;
+        } else {
+            info.textContent = `Showing ${start + 1} - ${end} of ${total} items`;
+        }
+    }
+
+    renderPortfolioPaginationControls(totalPages);
+}
+
+function renderPortfolioPaginationControls(totalPages) {
+    const container = document.getElementById('portfolioPaginationContainer');
+    const controls = document.getElementById('portfolioPaginationControls');
+    if (!container || !controls) return;
+
+    if (totalPages <= 1) {
+        container.style.display = 'none';
+        return;
+    }
+    container.style.display = '';
+
+    controls.innerHTML = '';
+
+
+    const prevLi = document.createElement('li');
+    prevLi.className = `page-item ${myPortfoliosCurrentPage === 1 ? 'disabled' : ''}`;
+    prevLi.innerHTML = `<a class="page-link" href="#" data-page="${myPortfoliosCurrentPage - 1}">Previous</a>`;
+    controls.appendChild(prevLi);
+
+
+    for (let i = 1; i <= totalPages; i++) {
+        if (i === 1 || i === totalPages || (i >= myPortfoliosCurrentPage - 1 && i <= myPortfoliosCurrentPage + 1)) {
+            const pageLi = document.createElement('li');
+            pageLi.className = `page-item ${i === myPortfoliosCurrentPage ? 'active' : ''}`;
+            pageLi.innerHTML = `<a class="page-link" href="#" data-page="${i}">${i}</a>`;
+            controls.appendChild(pageLi);
+        } else if (i === myPortfoliosCurrentPage - 2 || i === myPortfoliosCurrentPage + 2) {
+            const ellipsisLi = document.createElement('li');
+            ellipsisLi.className = 'page-item disabled';
+            ellipsisLi.innerHTML = '<span class="page-link">...</span>';
+            controls.appendChild(ellipsisLi);
+        }
+    }
+
+
+    const nextLi = document.createElement('li');
+    nextLi.className = `page-item ${myPortfoliosCurrentPage === totalPages ? 'disabled' : ''}`;
+    nextLi.innerHTML = `<a class="page-link" href="#" data-page="${myPortfoliosCurrentPage + 1}">Next</a>`;
+    controls.appendChild(nextLi);
+
+
+    controls.onclick = function(e) {
+        e.preventDefault();
+        if (e.target.classList.contains('page-link')) {
+            const page = parseInt(e.target.dataset.page);
+            if (page && page !== myPortfoliosCurrentPage && page >= 1 && page <= totalPages) {
+                myPortfoliosCurrentPage = page;
+                renderPortfolioList(allPortfolios);
+            }
+        }
+    };
+}
+
+document.getElementById('portfolioListSearchBtn').addEventListener('click', function() {
+    myPortfoliosCurrentPage = 1;
+    const query = document.getElementById('portfolioListSearchInput').value.trim().toLowerCase();
+    if (!query) {
+        renderPortfolioList(allPortfolios);
+        return;
+    }
+    const filtered = allPortfolios.filter(p =>
+        p.name && p.name.toLowerCase().includes(query)
+    );
+    renderPortfolioList(filtered);
+});
+document.getElementById('portfolioListSearchInput').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') {
+        myPortfoliosCurrentPage = 1;
+        document.getElementById('portfolioListSearchBtn').click();
+    }
+});
+
+async function loadPortfoliosSection() {
+    try {
+        const response = await api.getPortfolios();
+        if (response.success) {
+            allPortfolios = response.data;
+            myPortfoliosCurrentPage = 1;
+            renderPortfolioList(allPortfolios);
+        }
+    } catch (error) {
+        console.error('Failed to load portfolios section:', error);
+    }
+}

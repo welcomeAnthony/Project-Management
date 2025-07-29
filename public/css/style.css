@@ -604,8 +604,9 @@ input:not(:checked) + .theme-slider .theme-icon.moon {
     font-size: 0.875rem;
     text-transform: uppercase;
     letter-spacing: 0.5px;
-    color: var(--text-color);
-    background-color: var(--bg-secondary);
+    color: #495057;
+    background-color: #e9ecef;
+    border-bottom: 2px solid #dee2e6;
 }
 
 .table td {
@@ -613,6 +614,7 @@ input:not(:checked) + .theme-slider .theme-icon.moon {
     font-size: 0.9rem;
     color: var(--text-color);
     background-color: var(--card-bg);
+    border-bottom: 1px solid #dee2e6;
 }
 
 .btn {
@@ -628,17 +630,6 @@ input:not(:checked) + .theme-slider .theme-icon.moon {
 
 .table {
     margin-bottom: 0;
-}
-
-.table th {
-    border-top: none;
-    font-weight: 600;
-    color: var(--dark-color);
-    background-color: var(--light-color);
-}
-
-.table td {
-    vertical-align: middle;
 }
 
 .badge {
@@ -679,6 +670,45 @@ input:not(:checked) + .theme-slider .theme-icon.moon {
 
 .stat-card:hover {
     transform: translateY(-5px);
+}
+
+/* Transaction page card height matching */
+.transactions-filters-stats-row {
+    display: flex;
+    flex-wrap: wrap;
+}
+
+.transactions-filters-stats-row .col-md-8,
+.transactions-filters-stats-row .col-md-4 {
+    display: flex;
+}
+
+.transactions-filters-stats-row .card {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+.transactions-filters-stats-row .card-body {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Quick Stats specific styling for better spacing */
+.transactions-filters-stats-row .card-body .row:last-child {
+    margin-top: auto;
+}
+
+.transactions-filters-stats-row .card-body hr {
+    margin: 1rem 0;
+    flex-shrink: 0;
+}
+
+/* Ensure filter buttons stay at bottom */
+.transactions-filters-stats-row .card-body .row:last-child {
+    margin-top: auto;
+    padding-top: 1rem;
 }
 
 /* Enhanced validation styles */
@@ -985,7 +1015,16 @@ input:not(:checked) + .theme-slider .theme-icon.moon {
 
 /* Table hover effects */
 .table-hover tbody tr:hover {
-    background-color: var(--bg-secondary);
+    background-color: #f8f9fa;
+}
+
+.table-hover tbody tr:hover td {
+    background-color: #f8f9fa;
+}
+
+/* Table striped rows */
+.table-striped > tbody > tr:nth-of-type(odd) > td {
+    background-color: rgba(0, 0, 0, 0.025);
 }
 
 /* Dark theme specific styles */
@@ -1082,6 +1121,31 @@ input:not(:checked) + .theme-slider .theme-icon.moon {
 
 [data-theme="dark"] .badge {
     color: white;
+}
+
+/* Dark theme table styles */
+[data-theme="dark"] .table th {
+    background-color: #495057;
+    color: #ffffff;
+    border-bottom: 2px solid var(--border-color);
+}
+
+[data-theme="dark"] .table td {
+    background-color: var(--card-bg);
+    color: var(--text-color);
+    border-bottom: 1px solid var(--border-color);
+}
+
+[data-theme="dark"] .table-striped > tbody > tr:nth-of-type(odd) > td {
+    background-color: rgba(255, 255, 255, 0.05);
+}
+
+[data-theme="dark"] .table-hover tbody tr:hover {
+    background-color: rgba(255, 255, 255, 0.075);
+}
+
+[data-theme="dark"] .table-hover tbody tr:hover td {
+    background-color: rgba(255, 255, 255, 0.075);
 }
 
 [data-theme="dark"] .alert-info {
@@ -1191,4 +1255,15 @@ input:not(:checked) + .theme-slider .theme-icon.moon {
 .summary-card p {
     opacity: 0.9;
     margin-bottom: 0;
+}
+
+/* Performance chart dropdown selector */
+#performanceViewSelect {
+    min-width: 200px;
+    font-size: 0.875rem;
+}
+
+#performanceViewSelect:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
 }
