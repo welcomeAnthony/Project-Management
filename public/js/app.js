@@ -1574,3 +1574,120 @@ document.getElementById('portfolioListSearchInput').addEventListener('keydown', 
     }
 });
 // new here
+
+// My Portfolios splite page
+const myPortfoliosPerPage = 6;
+let myPortfoliosCurrentPage = 1;
+
+function renderPortfolioList(portfolios) {
+    const total = portfolios.length;
+    const totalPages = Math.ceil(total / myPortfoliosPerPage);
+
+    if (myPortfoliosCurrentPage > totalPages && totalPages > 0) {
+        myPortfoliosCurrentPage = totalPages;
+    } else if (myPortfoliosCurrentPage < 1) {
+        myPortfoliosCurrentPage = 1;
+    }
+
+    const start = (myPortfoliosCurrentPage - 1) * myPortfoliosPerPage;
+    const end = Math.min(start + myPortfoliosPerPage, total);
+    const pageData = portfolios.slice(start, end);
+
+    displayPortfoliosList(pageData);
+
+    const info = document.getElementById('portfolioPaginationInfo');
+    if (info) {
+        if (total === 0) {
+            info.textContent = `Showing 0 - 0 of 0 items`;
+        } else {
+            info.textContent = `Showing ${start + 1} - ${end} of ${total} items`;
+        }
+    }
+
+    renderPortfolioPaginationControls(totalPages);
+}
+
+function renderPortfolioPaginationControls(totalPages) {
+    const container = document.getElementById('portfolioPaginationContainer');
+    const controls = document.getElementById('portfolioPaginationControls');
+    if (!container || !controls) return;
+
+    if (totalPages <= 1) {
+        container.style.display = 'none';
+        return;
+    }
+    container.style.display = '';
+
+    controls.innerHTML = '';
+
+
+    const prevLi = document.createElement('li');
+    prevLi.className = `page-item ${myPortfoliosCurrentPage === 1 ? 'disabled' : ''}`;
+    prevLi.innerHTML = `<a class="page-link" href="#" data-page="${myPortfoliosCurrentPage - 1}">Previous</a>`;
+    controls.appendChild(prevLi);
+
+
+    for (let i = 1; i <= totalPages; i++) {
+        if (i === 1 || i === totalPages || (i >= myPortfoliosCurrentPage - 1 && i <= myPortfoliosCurrentPage + 1)) {
+            const pageLi = document.createElement('li');
+            pageLi.className = `page-item ${i === myPortfoliosCurrentPage ? 'active' : ''}`;
+            pageLi.innerHTML = `<a class="page-link" href="#" data-page="${i}">${i}</a>`;
+            controls.appendChild(pageLi);
+        } else if (i === myPortfoliosCurrentPage - 2 || i === myPortfoliosCurrentPage + 2) {
+            const ellipsisLi = document.createElement('li');
+            ellipsisLi.className = 'page-item disabled';
+            ellipsisLi.innerHTML = '<span class="page-link">...</span>';
+            controls.appendChild(ellipsisLi);
+        }
+    }
+
+
+    const nextLi = document.createElement('li');
+    nextLi.className = `page-item ${myPortfoliosCurrentPage === totalPages ? 'disabled' : ''}`;
+    nextLi.innerHTML = `<a class="page-link" href="#" data-page="${myPortfoliosCurrentPage + 1}">Next</a>`;
+    controls.appendChild(nextLi);
+
+
+    controls.onclick = function(e) {
+        e.preventDefault();
+        if (e.target.classList.contains('page-link')) {
+            const page = parseInt(e.target.dataset.page);
+            if (page && page !== myPortfoliosCurrentPage && page >= 1 && page <= totalPages) {
+                myPortfoliosCurrentPage = page;
+                renderPortfolioList(allPortfolios);
+            }
+        }
+    };
+}
+
+document.getElementById('portfolioListSearchBtn').addEventListener('click', function() {
+    myPortfoliosCurrentPage = 1;
+    const query = document.getElementById('portfolioListSearchInput').value.trim().toLowerCase();
+    if (!query) {
+        renderPortfolioList(allPortfolios);
+        return;
+    }
+    const filtered = allPortfolios.filter(p =>
+        p.name && p.name.toLowerCase().includes(query)
+    );
+    renderPortfolioList(filtered);
+});
+document.getElementById('portfolioListSearchInput').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') {
+        myPortfoliosCurrentPage = 1;
+        document.getElementById('portfolioListSearchBtn').click();
+    }
+});
+
+async function loadPortfoliosSection() {
+    try {
+        const response = await api.getPortfolios();
+        if (response.success) {
+            allPortfolios = response.data;
+            myPortfoliosCurrentPage = 1;
+            renderPortfolioList(allPortfolios);
+        }
+    } catch (error) {
+        console.error('Failed to load portfolios section:', error);
+    }
+}
