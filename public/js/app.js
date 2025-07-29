@@ -6,6 +6,12 @@ let allocationChart = null;
 let currentEditItemId = null;
 let currentEditPortfolioId = null;
 
+// Market indices variables
+let marketIndicesData = [];
+let currentMarketIndex = 0;
+let marketFlipInterval = null;
+let marketDataInterval = null;
+
 // Application initialization
 document.addEventListener('DOMContentLoaded', function() {
     initializeApp();
@@ -13,6 +19,9 @@ document.addEventListener('DOMContentLoaded', function() {
 
 async function initializeApp() {
     try {
+        // Initialize market indices display
+        initializeMarketIndices();
+        
         await loadPortfolios();
         await loadDefaultPortfolio();
         setupEventListeners();
@@ -21,6 +30,306 @@ async function initializeApp() {
     } catch (error) {
         console.error('Failed to initialize app:', error);
         showAlert('Failed to initialize application', 'danger');
+    }
+}
+
+// Market Indices Functions
+async function initializeMarketIndices() {
+    try {
+        console.log('🎯 Initializing market indices display...');
+        
+        // Check if the display element exists
+        const flipDisplay = document.getElementById('marketFlipDisplay');
+        if (!flipDisplay) {
+            console.error('❌ Market flip display element not found!');
+            return;
+        }
+        console.log('✅ Market flip display element found');
+        
+        // Create tooltip element
+        createMarketTooltip();
+        
+        // Load initial market data
+        await loadMarketIndicesData();
+        
+        // Start the flip display
+        startMarketFlipDisplay();
+        
+        // Set up hover events
+        setupMarketHoverEvents();
+        
+        // Set up interval to refresh data every 10 minutes
+        marketDataInterval = setInterval(loadMarketIndicesData, 10 * 60 * 1000);
+        
+        console.log('✅ Market indices display initialized successfully');
+    } catch (error) {
+        console.error('❌ Failed to initialize market indices:', error);
+        // Show fallback display
+        showMarketFallback();
+    }
+}
+
+async function loadMarketIndicesData() {
+    try {
+        console.log('📡 Loading market indices data...');
+        const response = await fetch('/api/market/indices');
+        const data = await response.json();
+        
+        if (data.success && data.data.length > 0) {
+            marketIndicesData = data.data;
+            console.log('✅ Market indices data loaded:', marketIndicesData.length, 'indices');
+            console.log('📊 Sample data:', marketIndicesData[0]);
+        } else {
+            console.warn('⚠️ No market indices data received');
+            showMarketFallback();
+        }
+    } catch (error) {
+        console.error('❌ Error loading market indices data:', error);
+        showMarketFallback();
+    }
+}
+
+function startMarketFlipDisplay() {
+    const flipDisplay = document.getElementById('marketFlipDisplay');
+    if (!flipDisplay) return;
+    
+    // Clear any existing interval
+    if (marketFlipInterval) {
+        clearInterval(marketFlipInterval);
+    }
+    
+    // Start with the first index
+    currentMarketIndex = 0;
+    updateFlipDisplay();
+    
+    // Set up interval to flip every 10 seconds
+    marketFlipInterval = setInterval(() => {
+        if (marketIndicesData.length > 0) {
+            currentMarketIndex = (currentMarketIndex + 1) % marketIndicesData.length;
+            updateFlipDisplay();
+        }
+    }, 1800);
+}
+
+function updateFlipDisplay() {
+    const flipDisplay = document.getElementById('marketFlipDisplay');
+    if (!flipDisplay || marketIndicesData.length === 0) {
+        console.warn('⚠️ Cannot update flip display - element missing or no data');
+        return;
+    }
+    
+    const currentData = marketIndicesData[currentMarketIndex];
+    if (!currentData) {
+        console.warn('⚠️ No data for index:', currentMarketIndex);
+        return;
+    }
+    
+    console.log('🔄 Updating flip display with:', currentData.symbol, currentData.price);
+    
+    // Find existing flip item or create new one
+    let flipItem = flipDisplay.querySelector('.flip-item');
+    if (!flipItem) {
+        flipItem = document.createElement('div');
+        flipItem.className = 'flip-item';
+        flipDisplay.appendChild(flipItem);
+        console.log('➕ Created new flip item');
+    }
+    
+    // Determine change class and sign
+    let changeClass = 'neutral';
+    let changeSign = '';
+    let changeValue = currentData.change;
+    
+    if (changeValue !== 'N/A' && changeValue !== '--') {
+        const changeNum = parseFloat(changeValue);
+        if (changeNum > 0) {
+            changeClass = 'positive';
+            changeSign = '+';
+        } else if (changeNum < 0) {
+            changeClass = 'negative';
+            changeSign = '';
+        }
+    }
+    
+    // Create new content
+    const newContent = `
+        <div class="flip-content">
+            <span class="index-name" title="${currentData.name}">${currentData.symbol}</span>
+            <span class="index-value">${currentData.price !== 'N/A' ? formatMarketPrice(currentData.price) : 'N/A'}</span>
+            <span class="index-change ${changeClass}">
+                ${changeValue !== 'N/A' ? `${changeSign}${changeValue}` : 'N/A'}
+            </span>
+        </div>
+    `;
+    
+    // Add exit animation to current item
+    flipItem.classList.add('exit');
+    
+    // Create new item with new content
+    setTimeout(() => {
+        flipItem.innerHTML = newContent;
+        flipItem.classList.remove('exit');
+        flipItem.classList.add('active');
+        
+        // Remove active class after animation
+        setTimeout(() => {
+            flipItem.classList.remove('active');
+        }, 800);
+    }, 400);
+}
+
+function formatMarketPrice(price) {
+    const num = parseFloat(price);
+    if (isNaN(num)) return price;
+    
+    // Always show full precision with 2 decimal places
+    return num.toFixed(2);
+}
+
+function createMarketTooltip() {
+    // Remove existing tooltip if any
+    const existingTooltip = document.getElementById('marketTooltip');
+    if (existingTooltip) {
+        existingTooltip.remove();
+    }
+    
+    // Create tooltip element
+    const tooltip = document.createElement('div');
+    tooltip.id = 'marketTooltip';
+    tooltip.className = 'market-tooltip';
+    tooltip.style.display = 'none';
+    document.body.appendChild(tooltip);
+}
+
+function setupMarketHoverEvents() {
+    const container = document.querySelector('.market-indices-container');
+    if (!container) return;
+    
+    let hoverTimeout;
+    
+    container.addEventListener('mouseenter', function() {
+        // Clear any existing timeout
+        clearTimeout(hoverTimeout);
+        
+        // Show tooltip after a short delay
+        hoverTimeout = setTimeout(() => {
+            showMarketTooltip();
+        }, 300);
+    });
+    
+    container.addEventListener('mouseleave', function() {
+        // Clear timeout and hide tooltip
+        clearTimeout(hoverTimeout);
+        hideMarketTooltip();
+    });
+    
+    // Update tooltip position on mouse move
+    container.addEventListener('mousemove', function(e) {
+        updateTooltipPosition(e);
+    });
+}
+
+function showMarketTooltip() {
+    if (marketIndicesData.length === 0) return;
+    
+    const tooltip = document.getElementById('marketTooltip');
+    if (!tooltip) return;
+    
+    // Create tooltip content
+    let tooltipContent = '<div class="tooltip-header">Market Indices</div>';
+    
+    marketIndicesData.forEach(index => {
+        let changeClass = 'neutral';
+        let changeSign = '';
+        
+        if (index.change !== 'N/A' && index.change !== '--') {
+            const changeNum = parseFloat(index.change);
+            if (changeNum > 0) {
+                changeClass = 'positive';
+                changeSign = '+';
+            } else if (changeNum < 0) {
+                changeClass = 'negative';
+                changeSign = '';
+            }
+        }
+        
+        tooltipContent += `
+            <div class="tooltip-item">
+                <div class="tooltip-symbol">${index.symbol}</div>
+                <div class="tooltip-name">${index.name}</div>
+                <div class="tooltip-price">$${formatMarketPrice(index.price)}</div>
+                <div class="tooltip-change ${changeClass}">
+                    ${index.change !== 'N/A' ? `${changeSign}${index.change} (${changeSign}${index.changePercent}%)` : 'N/A'}
+                </div>
+            </div>
+        `;
+    });
+    
+    tooltip.innerHTML = tooltipContent;
+    tooltip.style.display = 'block';
+}
+
+function hideMarketTooltip() {
+    const tooltip = document.getElementById('marketTooltip');
+    if (tooltip) {
+        tooltip.style.display = 'none';
+    }
+}
+
+function updateTooltipPosition(e) {
+    const tooltip = document.getElementById('marketTooltip');
+    if (!tooltip || tooltip.style.display === 'none') return;
+    
+    const rect = tooltip.getBoundingClientRect();
+    const viewportWidth = window.innerWidth;
+    const viewportHeight = window.innerHeight;
+    
+    let left = e.clientX + 15;
+    let top = e.clientY - 10;
+    
+    // Adjust if tooltip would go off screen
+    if (left + rect.width > viewportWidth) {
+        left = e.clientX - rect.width - 15;
+    }
+    
+    if (top + rect.height > viewportHeight) {
+        top = e.clientY - rect.height - 10;
+    }
+    
+    tooltip.style.left = left + 'px';
+    tooltip.style.top = top + 'px';
+}
+
+function showMarketFallback() {
+    const flipDisplay = document.getElementById('marketFlipDisplay');
+    if (!flipDisplay) return;
+    
+    flipDisplay.innerHTML = `
+        <div class="flip-item active">
+            <div class="flip-content">
+                <span class="index-name">Market</span>
+                <span class="index-value">Data</span>
+                <span class="index-change neutral">Loading</span>
+            </div>
+        </div>
+    `;
+}
+
+// Cleanup function for market intervals
+function cleanupMarketIndices() {
+    if (marketFlipInterval) {
+        clearInterval(marketFlipInterval);
+        marketFlipInterval = null;
+    }
+    if (marketDataInterval) {
+        clearInterval(marketDataInterval);
+        marketDataInterval = null;
+    }
+    
+    // Remove tooltip
+    const tooltip = document.getElementById('marketTooltip');
+    if (tooltip) {
+        tooltip.remove();
     }
 }
 
@@ -1497,4 +1806,10 @@ document.getElementById('portfolioListSearchInput').addEventListener('keydown', 
         document.getElementById('portfolioListSearchBtn').click();
     }
 });
+
+// Cleanup on page unload
+window.addEventListener('beforeunload', function() {
+    cleanupMarketIndices();
+});
+
 // new here
