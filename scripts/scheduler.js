@@ -3,7 +3,7 @@ const path = require('path');
 const { fork } = require('child_process');
 
 // Schedule task to run at 00:00 (midnight) every day
-cron.schedule('0 0 * * *', () => {
+cron.schedule('07 14 * * *', () => {
     console.log('Running generatePerformanceData script at:', new Date().toISOString());
     
     const scriptPath = path.join(__dirname, 'generatePerformanceData.js');
