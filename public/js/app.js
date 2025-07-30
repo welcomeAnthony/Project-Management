@@ -4,6 +4,13 @@ let currentPortfolio = null;
 let performanceChart = null;
 let allocationChart = null;
 let currentEditItemId = null;
+let currentEditPortfolioId = null;
+
+// Market indices variables
+let marketIndicesData = [];
+let currentMarketIndex = 0;
+let marketFlipInterval = null;
+let marketDataInterval = null;
 
 // Application initialization
 document.addEventListener('DOMContentLoaded', function() {
@@ -12,6 +19,9 @@ document.addEventListener('DOMContentLoaded', function() {
 
 async function initializeApp() {
     try {
+        // Initialize market indices display
+        initializeMarketIndices();
+        
         await loadPortfolios();
         await loadDefaultPortfolio();
         setupEventListeners();
@@ -19,6 +29,306 @@ async function initializeApp() {
     } catch (error) {
         console.error('Failed to initialize app:', error);
         showAlert('Failed to initialize application', 'danger');
+    }
+}
+
+// Market Indices Functions
+async function initializeMarketIndices() {
+    try {
+        console.log('🎯 Initializing market indices display...');
+        
+        // Check if the display element exists
+        const flipDisplay = document.getElementById('marketFlipDisplay');
+        if (!flipDisplay) {
+            console.error('❌ Market flip display element not found!');
+            return;
+        }
+        console.log('✅ Market flip display element found');
+        
+        // Create tooltip element
+        createMarketTooltip();
+        
+        // Load initial market data
+        await loadMarketIndicesData();
+        
+        // Start the flip display
+        startMarketFlipDisplay();
+        
+        // Set up hover events
+        setupMarketHoverEvents();
+        
+        // Set up interval to refresh data every 10 minutes
+        marketDataInterval = setInterval(loadMarketIndicesData, 10 * 60 * 1000);
+        
+        console.log('✅ Market indices display initialized successfully');
+    } catch (error) {
+        console.error('❌ Failed to initialize market indices:', error);
+        // Show fallback display
+        showMarketFallback();
+    }
+}
+
+async function loadMarketIndicesData() {
+    try {
+        console.log('📡 Loading market indices data...');
+        const response = await fetch('/api/market/indices');
+        const data = await response.json();
+        
+        if (data.success && data.data.length > 0) {
+            marketIndicesData = data.data;
+            console.log('✅ Market indices data loaded:', marketIndicesData.length, 'indices');
+            console.log('📊 Sample data:', marketIndicesData[0]);
+        } else {
+            console.warn('⚠️ No market indices data received');
+            showMarketFallback();
+        }
+    } catch (error) {
+        console.error('❌ Error loading market indices data:', error);
+        showMarketFallback();
+    }
+}
+
+function startMarketFlipDisplay() {
+    const flipDisplay = document.getElementById('marketFlipDisplay');
+    if (!flipDisplay) return;
+    
+    // Clear any existing interval
+    if (marketFlipInterval) {
+        clearInterval(marketFlipInterval);
+    }
+    
+    // Start with the first index
+    currentMarketIndex = 0;
+    updateFlipDisplay();
+    
+    // Set up interval to flip every 10 seconds
+    marketFlipInterval = setInterval(() => {
+        if (marketIndicesData.length > 0) {
+            currentMarketIndex = (currentMarketIndex + 1) % marketIndicesData.length;
+            updateFlipDisplay();
+        }
+    }, 1800);
+}
+
+function updateFlipDisplay() {
+    const flipDisplay = document.getElementById('marketFlipDisplay');
+    if (!flipDisplay || marketIndicesData.length === 0) {
+        console.warn('⚠️ Cannot update flip display - element missing or no data');
+        return;
+    }
+    
+    const currentData = marketIndicesData[currentMarketIndex];
+    if (!currentData) {
+        console.warn('⚠️ No data for index:', currentMarketIndex);
+        return;
+    }
+    
+    console.log('🔄 Updating flip display with:', currentData.symbol, currentData.price);
+    
+    // Find existing flip item or create new one
+    let flipItem = flipDisplay.querySelector('.flip-item');
+    if (!flipItem) {
+        flipItem = document.createElement('div');
+        flipItem.className = 'flip-item';
+        flipDisplay.appendChild(flipItem);
+        console.log('➕ Created new flip item');
+    }
+    
+    // Determine change class and sign
+    let changeClass = 'neutral';
+    let changeSign = '';
+    let changeValue = currentData.change;
+    
+    if (changeValue !== 'N/A' && changeValue !== '--') {
+        const changeNum = parseFloat(changeValue);
+        if (changeNum > 0) {
+            changeClass = 'positive';
+            changeSign = '+';
+        } else if (changeNum < 0) {
+            changeClass = 'negative';
+            changeSign = '';
+        }
+    }
+    
+    // Create new content
+    const newContent = `
+        <div class="flip-content">
+            <span class="index-name" title="${currentData.name}">${currentData.symbol}</span>
+            <span class="index-value">${currentData.price !== 'N/A' ? formatMarketPrice(currentData.price) : 'N/A'}</span>
+            <span class="index-change ${changeClass}">
+                ${changeValue !== 'N/A' ? `${changeSign}${changeValue}` : 'N/A'}
+            </span>
+        </div>
+    `;
+    
+    // Add exit animation to current item
+    flipItem.classList.add('exit');
+    
+    // Create new item with new content
+    setTimeout(() => {
+        flipItem.innerHTML = newContent;
+        flipItem.classList.remove('exit');
+        flipItem.classList.add('active');
+        
+        // Remove active class after animation
+        setTimeout(() => {
+            flipItem.classList.remove('active');
+        }, 800);
+    }, 400);
+}
+
+function formatMarketPrice(price) {
+    const num = parseFloat(price);
+    if (isNaN(num)) return price;
+    
+    // Always show full precision with 2 decimal places
+    return num.toFixed(2);
+}
+
+function createMarketTooltip() {
+    // Remove existing tooltip if any
+    const existingTooltip = document.getElementById('marketTooltip');
+    if (existingTooltip) {
+        existingTooltip.remove();
+    }
+    
+    // Create tooltip element
+    const tooltip = document.createElement('div');
+    tooltip.id = 'marketTooltip';
+    tooltip.className = 'market-tooltip';
+    tooltip.style.display = 'none';
+    document.body.appendChild(tooltip);
+}
+
+function setupMarketHoverEvents() {
+    const container = document.querySelector('.market-indices-container');
+    if (!container) return;
+    
+    let hoverTimeout;
+    
+    container.addEventListener('mouseenter', function() {
+        // Clear any existing timeout
+        clearTimeout(hoverTimeout);
+        
+        // Show tooltip after a short delay
+        hoverTimeout = setTimeout(() => {
+            showMarketTooltip();
+        }, 300);
+    });
+    
+    container.addEventListener('mouseleave', function() {
+        // Clear timeout and hide tooltip
+        clearTimeout(hoverTimeout);
+        hideMarketTooltip();
+    });
+    
+    // Update tooltip position on mouse move
+    container.addEventListener('mousemove', function(e) {
+        updateTooltipPosition(e);
+    });
+}
+
+function showMarketTooltip() {
+    if (marketIndicesData.length === 0) return;
+    
+    const tooltip = document.getElementById('marketTooltip');
+    if (!tooltip) return;
+    
+    // Create tooltip content
+    let tooltipContent = '<div class="tooltip-header">Market Indices</div>';
+    
+    marketIndicesData.forEach(index => {
+        let changeClass = 'neutral';
+        let changeSign = '';
+        
+        if (index.change !== 'N/A' && index.change !== '--') {
+            const changeNum = parseFloat(index.change);
+            if (changeNum > 0) {
+                changeClass = 'positive';
+                changeSign = '+';
+            } else if (changeNum < 0) {
+                changeClass = 'negative';
+                changeSign = '';
+            }
+        }
+        
+        tooltipContent += `
+            <div class="tooltip-item">
+                <div class="tooltip-symbol">${index.symbol}</div>
+                <div class="tooltip-name">${index.name}</div>
+                <div class="tooltip-price">$${formatMarketPrice(index.price)}</div>
+                <div class="tooltip-change ${changeClass}">
+                    ${index.change !== 'N/A' ? `${changeSign}${index.change} (${changeSign}${index.changePercent}%)` : 'N/A'}
+                </div>
+            </div>
+        `;
+    });
+    
+    tooltip.innerHTML = tooltipContent;
+    tooltip.style.display = 'block';
+}
+
+function hideMarketTooltip() {
+    const tooltip = document.getElementById('marketTooltip');
+    if (tooltip) {
+        tooltip.style.display = 'none';
+    }
+}
+
+function updateTooltipPosition(e) {
+    const tooltip = document.getElementById('marketTooltip');
+    if (!tooltip || tooltip.style.display === 'none') return;
+    
+    const rect = tooltip.getBoundingClientRect();
+    const viewportWidth = window.innerWidth;
+    const viewportHeight = window.innerHeight;
+    
+    let left = e.clientX + 15;
+    let top = e.clientY - 10;
+    
+    // Adjust if tooltip would go off screen
+    if (left + rect.width > viewportWidth) {
+        left = e.clientX - rect.width - 15;
+    }
+    
+    if (top + rect.height > viewportHeight) {
+        top = e.clientY - rect.height - 10;
+    }
+    
+    tooltip.style.left = left + 'px';
+    tooltip.style.top = top + 'px';
+}
+
+function showMarketFallback() {
+    const flipDisplay = document.getElementById('marketFlipDisplay');
+    if (!flipDisplay) return;
+    
+    flipDisplay.innerHTML = `
+        <div class="flip-item active">
+            <div class="flip-content">
+                <span class="index-name">Market</span>
+                <span class="index-value">Data</span>
+                <span class="index-change neutral">Loading</span>
+            </div>
+        </div>
+    `;
+}
+
+// Cleanup function for market intervals
+function cleanupMarketIndices() {
+    if (marketFlipInterval) {
+        clearInterval(marketFlipInterval);
+        marketFlipInterval = null;
+    }
+    if (marketDataInterval) {
+        clearInterval(marketDataInterval);
+        marketDataInterval = null;
+    }
+    
+    // Remove tooltip
+    const tooltip = document.getElementById('marketTooltip');
+    if (tooltip) {
+        tooltip.remove();
     }
 }
 
@@ -76,9 +386,19 @@ async function loadDefaultPortfolio() {
             if (dashboardSelect && currentPortfolio) {
                 dashboardSelect.value = currentPortfolio.id;
             }
+        } else {
+            // No portfolios available
+            currentPortfolio = null;
+
+            // Clear dashboard portfolio selector
+            const dashboardSelect = document.getElementById('dashboardPortfolioSelect');
+            if (dashboardSelect) {
+                dashboardSelect.value = '';
+            }
         }
     } catch (error) {
         console.error('Failed to load default portfolio:', error);
+        currentPortfolio = null;
     }
 }
 
@@ -1016,32 +1336,58 @@ function updatePortfolioSelect(portfolios) {
     const select = document.getElementById('portfolioSelect');
     select.innerHTML = '<option value="">Select Portfolio</option>';
     
-    portfolios.forEach(portfolio => {
-        const option = document.createElement('option');
-        option.value = portfolio.id;
-        option.textContent = portfolio.name;
-        select.appendChild(option);
-    });
-    
     // Update the Dashboard portfolio selector
     const dashboardSelect = document.getElementById('dashboardPortfolioSelect');
     if (dashboardSelect) {
         dashboardSelect.innerHTML = '<option value="">Select Portfolio...</option>';
-        
-        portfolios.forEach(portfolio => {
-            const option = document.createElement('option');
-            option.value = portfolio.id;
-            option.textContent = portfolio.name;
-            if (currentPortfolio && portfolio.id === currentPortfolio.id) {
-                option.selected = true;
-            }
-            dashboardSelect.appendChild(option);
-        });
     }
+    
+    // If no portfolios exist, show appropriate message
+    if (!portfolios || portfolios.length === 0) {
+        const noPortfolioOption = document.createElement('option');
+        noPortfolioOption.value = '';
+        noPortfolioOption.textContent = 'No portfolios available';
+        noPortfolioOption.disabled = true;
+        select.appendChild(noPortfolioOption);
+        
+        if (dashboardSelect) {
+            const noDashboardOption = document.createElement('option');
+            noDashboardOption.value = '';
+            noDashboardOption.textContent = 'No portfolios available';
+            noDashboardOption.disabled = true;
+            dashboardSelect.appendChild(noDashboardOption);
+        }
+        return;
+    }
+    
+    portfolios.forEach(portfolio => {
+        // Add to Add Item form selector
+        const option = document.createElement('option');
+        option.value = portfolio.id;
+        option.textContent = portfolio.name;
+        select.appendChild(option);
+        
+        // Add to Dashboard selector
+        if (dashboardSelect) {
+            const dashOption = document.createElement('option');
+            dashOption.value = portfolio.id;
+            dashOption.textContent = portfolio.name;
+            if (currentPortfolio && portfolio.id === currentPortfolio.id) {
+                dashOption.selected = true;
+            }
+            dashboardSelect.appendChild(dashOption);
+        }
+    });
 }
 
 async function loadPortfoliosSection() {
     try {
+        // Initialize portfolio details section
+        const portfolioDetailsContainer = document.getElementById('portfolioDetails');
+        if (portfolioDetailsContainer) {
+            portfolioDetailsContainer.innerHTML = '<p class="text-muted">Select a portfolio to view details</p>';
+        }
+        
         const response = await api.getPortfolios();
         if (response.success) {
             displayPortfoliosList(response.data);
@@ -1070,7 +1416,21 @@ async function switchToPortfolio(portfolioId) {
 
 function displayPortfoliosList(portfolios) {
     const container = document.getElementById('portfoliosList');
+    const portfolioDetailsContainer = document.getElementById('portfolioDetails');
     container.innerHTML = '';
+    
+    // If no portfolios exist, show message and clear details
+    if (!portfolios || portfolios.length === 0) {
+        container.innerHTML = `
+            <div class="text-center py-5">
+                <i class="fas fa-folder-open fa-3x text-muted mb-3"></i>
+                <h5 class="text-muted">No Portfolios Found</h5>
+                <p class="text-muted">Create your first portfolio to get started</p>
+            </div>
+        `;
+        portfolioDetailsContainer.innerHTML = '<p class="text-muted">No portfolio selected</p>';
+        return;
+    }
     
     portfolios.forEach(portfolio => {
         const card = document.createElement('div');
@@ -1197,16 +1557,25 @@ async function createPortfolio() {
 // Portfolio edit and delete functions
 async function editPortfolio(portfolioId) {
     try {
-        // For now, show an alert - you can implement a modal later
-        const portfolioName = prompt('Enter new portfolio name:');
-        if (portfolioName && portfolioName.trim()) {
-            await api.updatePortfolio(portfolioId, { 
-                name: portfolioName.trim(),
-                description: `Updated portfolio: ${portfolioName.trim()}`
-            });
-            showAlert('Portfolio updated successfully', 'success');
-            await loadPortfoliosSection();
-        }
+        // Get portfolio data first
+        const response = await api.getPortfolio(portfolioId);
+        const portfolio = response.data; // Fix: use response.data instead of response.portfolio
+        
+        // Set current edit portfolio ID
+        currentEditPortfolioId = portfolioId;
+        
+        // Clear any previous validation states
+        const form = document.getElementById('editPortfolioForm');
+        form.classList.remove('was-validated');
+        
+        // Populate the modal form with current data
+        document.getElementById('editPortfolioName').value = portfolio.name || '';
+        document.getElementById('editPortfolioDescription').value = portfolio.description || '';
+        
+        // Show the modal
+        const modal = new bootstrap.Modal(document.getElementById('editPortfolioModal'));
+        modal.show();
+        
     } catch (error) {
         showAlert(error.message, 'danger');
     }
@@ -1229,12 +1598,33 @@ async function confirmDeletePortfolio(portfolioId) {
             return;
         }
         
-        if (confirm(`Are you sure you want to delete the portfolio "${portfolio.name}"? This action cannot be undone.`)) {
+        if (confirm(`Are you sure you want to delete the portfolio "${portfolio.name}"? This action cannot be undone.`)) {  
             await api.deletePortfolio(portfolioId);
             showAlert('Portfolio deleted successfully', 'success');
+
+            // Clear portfolio details section
+            const portfolioDetailsContainer = document.getElementById('portfolioDetails');
+            portfolioDetailsContainer.innerHTML = '<p class="text-muted">Select a portfolio to view details</p>';
+
+            // Remove active state from portfolio cards
+            document.querySelectorAll('.portfolio-card').forEach(card => {
+                card.classList.remove('active');
+            });
+
+            // Check if this was the current portfolio before clearing the reference
+            const wasCurrentPortfolio = currentPortfolio && currentPortfolio.id === portfolioId;
+
+            // If this was the current portfolio, clear the reference
+            if (wasCurrentPortfolio) {
+                currentPortfolio = null;
+            }
+
+            // Always refresh portfolio selectors and lists
+            await loadPortfolios();
             await loadPortfoliosSection();
-            // If this was the current portfolio, reset to default
-            if (currentPortfolio && currentPortfolio.id === portfolioId) {
+
+            // If this was the current portfolio, reset to default and refresh dashboard
+            if (wasCurrentPortfolio) {
                 await loadDefaultPortfolio();
                 await loadDashboard();
             }
@@ -1727,13 +2117,13 @@ async function handleSellShares() {
                 portfolio_id: parseInt(currentItem.portfolio_id),
                 transaction_type: 'sell',
                 symbol: currentItem.symbol,
-                asset_name: currentItem.name,
+                asset_name: currentItem.name || currentItem.symbol, // Fallback to symbol if name is null
                 quantity: currentQuantity, // Use actual quantity being sold
                 price_per_unit: sellPrice,
                 total_amount: currentQuantity * sellPrice,
                 fees: 0,
                 transaction_date: sellDate,
-                description: `Complete sale of ${currentItem.name} (${currentItem.symbol})`,
+                description: `Complete sale of ${currentItem.name || currentItem.symbol} (${currentItem.symbol})`,
                 status: 'completed'
             };
             
@@ -1760,13 +2150,13 @@ async function handleSellShares() {
                 portfolio_id: parseInt(currentItem.portfolio_id),
                 transaction_type: 'sell',
                 symbol: currentItem.symbol,
-                asset_name: currentItem.name,
+                asset_name: currentItem.name || currentItem.symbol, // Fallback to symbol if name is null
                 quantity: sellQuantity,
                 price_per_unit: sellPrice,
                 total_amount: sellQuantity * sellPrice,
                 fees: 0,
                 transaction_date: sellDate,
-                description: `Partial sale of ${currentItem.name} (${currentItem.symbol})`,
+                description: `Partial sale of ${currentItem.name || currentItem.symbol} (${currentItem.symbol})`,
                 status: 'completed'
             };
             
@@ -1813,6 +2203,49 @@ async function deleteItem(itemId) {
     }
 }
 
+// 页面初始化后绑定事件
+document.addEventListener('DOMContentLoaded', function() {
+    const currencySelect = document.getElementById('currency');
+    const purchaseInput = document.getElementById('purchasePrice');
+    const currentInput = document.getElementById('currentPrice');
+
+    function updatePriceInputsForCurrency() {
+        const isJPY = currencySelect.value === 'JPY';
+        if (isJPY) {
+            purchaseInput.step = '1';
+            purchaseInput.min = '0';
+            currentInput.step = '1';
+            currentInput.min = '0';
+            // Reset values to zero
+            purchaseInput.value = '0';
+            currentInput.value = '0';
+        } else {
+            purchaseInput.step = '0.01';
+            purchaseInput.min = '0';
+            currentInput.step = '0.01';
+            currentInput.min = '0';
+            // Reset values to zero
+            purchaseInput.value = '0';
+            currentInput.value = '0';
+        }
+    }
+
+    // 监听币种变化
+    currencySelect.addEventListener('change', updatePriceInputsForCurrency);
+
+    // 只允许输入整数（JPY时）
+    function forceIntegerInput(e) {
+        if (currencySelect.value === 'JPY') {
+            e.target.value = e.target.value.replace(/\D/g, '');
+        }
+    }
+    purchaseInput.addEventListener('input', forceIntegerInput);
+    currentInput.addEventListener('input', forceIntegerInput);
+
+    // 初始化时也执行一次
+    updatePriceInputsForCurrency();
+});
+
 // Event listeners
 function setupEventListeners() {
     // Navigation event listeners
@@ -1842,6 +2275,43 @@ function setupEventListeners() {
     // Create portfolio form submit
     document.getElementById('create-portfolio-submit').addEventListener('click', function() {
         createPortfolio();
+    });
+    
+    // Edit portfolio form submit
+    document.getElementById('edit-portfolio-submit').addEventListener('click', async function() {
+        try {
+            const name = document.getElementById('editPortfolioName').value.trim();
+            const description = document.getElementById('editPortfolioDescription').value.trim();
+            
+            if (!name) {
+                showAlert('Portfolio name is required', 'warning');
+                return;
+            }
+            
+            // Update portfolio
+            await api.updatePortfolio(currentEditPortfolioId, {
+                name: name,
+                description: description
+            });
+            
+            showAlert('Portfolio updated successfully', 'success');
+            
+            // If this is the currently selected portfolio, update the current portfolio reference
+            if (currentPortfolio && currentPortfolio.id === currentEditPortfolioId) {
+                currentPortfolio.name = name;
+                currentPortfolio.description = description;
+            }
+            
+            // Close modal
+            const modal = bootstrap.Modal.getInstance(document.getElementById('editPortfolioModal'));
+            modal.hide();
+            
+            // Reload portfolios list
+            await loadPortfoliosSection();
+            
+        } catch (error) {
+            showAlert(error.message, 'danger');
+        }
     });
     
     // Update item form submit
@@ -2004,7 +2474,12 @@ document.getElementById('portfolioListSearchInput').addEventListener('keydown', 
         document.getElementById('portfolioListSearchBtn').click();
     }
 });
-// new here
+
+// Cleanup on page unload
+window.addEventListener('beforeunload', function() {
+    cleanupMarketIndices();
+});
+
 
 // My Portfolios splite page
 const myPortfoliosPerPage = 6;
@@ -2122,4 +2597,3 @@ async function loadPortfoliosSection() {
         console.error('Failed to load portfolios section:', error);
     }
 }
-
