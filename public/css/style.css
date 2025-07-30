@@ -1267,3 +1267,26 @@ input:not(:checked) + .theme-slider .theme-icon.moon {
     border-color: var(--primary-color);
     box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
 }
+
+/* Purchase date field styling */
+.purchase-date-field {
+    background-color: #e9ecef !important;
+    cursor: not-allowed !important;
+}
+
+.purchase-date-group .input-group-text {
+    background-color: #e9ecef !important;
+}
+
+/* Dark theme purchase date field styling */
+[data-theme="dark"] .purchase-date-field {
+    background-color: #495057 !important;
+    color: #adb5bd !important;
+    border-color: #6c757d !important;
+}
+
+[data-theme="dark"] .purchase-date-group .input-group-text {
+    background-color: #495057 !important;
+    color: #adb5bd !important;
+    border-color: #6c757d !important;
+}
