@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Top 10 Stocks - Portfolio Manager</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="css/style.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="index.html"><i class="fas fa-chart-line me-2"></i>Portfolio Manager</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto">
+                    <li class="nav-item">
+                        <a class="nav-link" href="index.html">
+                            <i class="fas fa-tachometer-alt me-1"></i>Dashboard
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="transactions.html">
+                            <i class="fas fa-exchange-alt me-1"></i>Transactions
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link active" href="top-stocks.html">
+                            <i class="fas fa-chart-line me-1"></i>Top Stocks
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="container-fluid mt-4">
+        <!-- Alert Messages -->
+        <div id="alert-container"></div>
+
+        <!-- Top Stocks Header -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h2 class="mb-0">
+                                    <i class="fas fa-chart-line me-2"></i>Top 10 Stocks Performance
+                                </h2>
+                                <p class="text-muted mb-0">Interactive stock price and volume charts</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Chart Section -->
+        <div class="row">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0"><i class="fas fa-chart-line me-2"></i>Stock Performance Chart</h5>
+                        <div class="d-flex align-items-center gap-3">
+                            <div class="d-flex align-items-center">
+                                <label class="form-label me-2 mb-0">Stock:</label>
+                                <select class="form-select" id="stockSelect" style="width: auto;">
+                                    <option value="">Loading stocks...</option>
+                                </select>
+                            </div>
+                            <div class="d-flex align-items-center">
+                                <label class="form-label me-2 mb-0">Metric:</label>
+                                <select class="form-select" id="attributeSelect" style="width: auto;">
+                                    <option value="close_price">Closing Price</option>
+                                    <option value="volume">Trading Volume</option>
+                                    <option value="open_price">Opening Price</option>
+                                    <option value="high_price">Daily High</option>
+                                    <option value="low_price">Daily Low</option>
+                                </select>
+                            </div>
+                            <div class="d-flex align-items-center">
+                                <label class="form-label me-2 mb-0">Period:</label>
+                                <select class="form-select" id="periodSelect" style="width: auto;">
+                                    <option value="7">7 Days</option>
+                                    <option value="14">14 Days</option>
+                                    <option value="30" selected>30 Days</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-body" style="height: 400px;">
+                        <!-- Chart Canvas -->
+                        <canvas id="stockChart" style="height: 100% !important; width: 100% !important;"></canvas>
+                        
+                        <!-- No Data Message -->
+                        <div id="noDataArea" class="text-center h-100 d-flex align-items-center justify-content-center" style="display: none;">
+                            <div class="text-muted">
+                                <i class="fas fa-chart-line fa-3x mb-3 opacity-50"></i>
+                                <h5>No Chart Data Available</h5>
+                                <p>Select a stock symbol to view its performance chart.<br>
+                                <small>Historical data may need to be fetched first using the API.</small></p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
+    <script src="js/theme.js"></script>
+    <script src="js/api.js"></script>
+    <script src="js/top-stocks.js"></script>
+</body>
+</html>

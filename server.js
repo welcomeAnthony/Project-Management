@@ -12,6 +12,7 @@ const portfolioItemRoutes = require('./routes/portfolioItems');
 // const adminRoutes = require('./routes/admin');
 const marketRoutes = require('./routes/market');
 const transactionRoutes = require('./routes/transactions');
+const topStockRoutes = require('./routes/topStocks');
 
 // Import database and swagger
 const { testConnection } = require('./config/database');
@@ -64,6 +65,7 @@ app.use('/api', portfolioItemRoutes);
 // app.use('/api/admin', adminRoutes);
 app.use('/api/market', marketRoutes);
 app.use('/api/transactions', transactionRoutes);
+app.use('/api/top-stocks', topStockRoutes);
 
 // Error handling middleware
 app.use(notFoundHandler);
