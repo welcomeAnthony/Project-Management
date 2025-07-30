@@ -9,15 +9,18 @@ const dbConfig = {
   database: process.env.DB_NAME || 'portfolio_management',
   charset: 'utf8mb4',
   acquireTimeout: 60000,
-  timeout: 60000,
-  reconnect: true
+  connectionLimit: 10,
+  // Additional MySQL2 specific options for better compatibility
+  multipleStatements: false,
+  dateStrings: false,
+  supportBigNumbers: true,
+  bigNumberStrings: false
 };
 
 // Create connection pool
 const pool = mysql.createPool({
   ...dbConfig,
   waitForConnections: true,
-  connectionLimit: 10,
   queueLimit: 0
 });
 
