@@ -1857,6 +1857,7 @@ async function showBuyModal(item) {
     
     modalTitle.textContent = `Buy More - ${item.symbol}`;
     
+
     // Get latest stock data from top_stocks table
     let latestStockData = null;
     let currency = 'USD'; // Default currency
@@ -1886,6 +1887,7 @@ async function showBuyModal(item) {
     const currentPriceDisplay = (currency === 'JPY') ? 
         Math.round(parseFloat(currentPrice)) : 
         parseFloat(currentPrice).toFixed(2);
+
     
     form.innerHTML = `
         <div class="alert alert-info">
@@ -1909,6 +1911,7 @@ async function showBuyModal(item) {
             </div>
             <div class="col-md-6 mb-3">
                 <label class="form-label">Current Price</label>
+
                 <input type="number" class="form-control" id="buyCurrentPrice" step="${stepValue}" value="${currentPriceDisplay}" placeholder="Optional: Update current price">
             </div>
         </div>
@@ -1918,6 +1921,7 @@ async function showBuyModal(item) {
                     <i class="fas fa-info-circle me-1"></i>
                     Currency: ${currency} ${latestStockData ? '(from latest market data)' : '(default)'}
                 </small>
+
             </div>
         </div>
     `;
@@ -2053,6 +2057,12 @@ async function showSellModal(item) {
     const priceValue = (currency === 'JPY') ? 
         Math.round(parseFloat(currentPrice)) : 
         parseFloat(currentPrice).toFixed(2);
+    
+    // Determine the step value based on currency
+    const stepValue = (item.currency === 'JPY') ? '1' : '0.01';
+    const priceValue = (item.currency === 'JPY') ? 
+        Math.round(parseFloat(item.current_price || item.purchase_price)) : 
+        (item.current_price || item.purchase_price);
     
     form.innerHTML = `
         <div class="alert alert-warning">
