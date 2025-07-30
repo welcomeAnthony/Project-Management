@@ -1664,11 +1664,11 @@ async function loadStocksForSelection() {
         
         // Check if api object exists and has the method
         if (window.api && typeof window.api.getStocks === 'function') {
-            response = await window.api.getStocks(1000);
+            response = await window.api.getStocks(10); // Get latest 10 stocks
         } else {
             console.log('Using direct fetch for stocks');
             // Fallback to direct fetch
-            const fetchResponse = await fetch('/api/stocks?limit=1000');
+            const fetchResponse = await fetch('/api/stocks?limit=10');
             response = await fetchResponse.json();
         }
         

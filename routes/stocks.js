@@ -117,12 +117,16 @@ const { pool } = require('../config/database');
  */
 router.get('/', async (req, res) => {
   try {
-    const { limit = 100, search = '' } = req.query;
+    const { limit = 10, search = '' } = req.query;
     
     let query = `
-      SELECT DISTINCT symbol, name, sector, close_price, currency 
-      FROM top_stocks 
-      WHERE 1=1
+      SELECT symbol, name, sector, close_price, currency, updated_at
+      FROM top_stocks t1
+      WHERE updated_at = (
+        SELECT MAX(updated_at) 
+        FROM top_stocks t2 
+        WHERE t2.symbol = t1.symbol
+      )
     `;
     const params = [];
     
@@ -131,7 +135,10 @@ router.get('/', async (req, res) => {
       params.push(`%${search}%`, `%${search}%`);
     }
     
-    query += ` ORDER BY symbol LIMIT ?`;
+    query += `
+      ORDER BY updated_at DESC
+      LIMIT ?
+    `;
     params.push(parseInt(limit));
     
     const [rows] = await pool.execute(query, params);
