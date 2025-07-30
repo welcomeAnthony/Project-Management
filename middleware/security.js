@@ -3,9 +3,13 @@ const helmet = require('helmet');
 
 // Rate limiting middleware
 const createRateLimit = (windowMs = 15 * 60 * 1000, max = 100) => {
+  // Use environment variables if available
+  const window = parseInt(process.env.RATE_LIMIT_WINDOW) * 60 * 1000 || windowMs;
+  const maxRequests = parseInt(process.env.RATE_LIMIT_MAX_REQUESTS) || max;
+  
   return rateLimit({
-    windowMs,
-    max,
+    windowMs: window,
+    max: maxRequests,
     message: {
       success: false,
       message: 'Too many requests from this IP, please try again later.',
