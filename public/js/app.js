@@ -1557,23 +1557,25 @@ async function createPortfolio() {
 // Portfolio edit and delete functions
 async function editPortfolio(portfolioId) {
     try {
-        // For now, show an alert - you can implement a modal later
-        const portfolioName = prompt('Enter new portfolio name:');
-        if (portfolioName && portfolioName.trim()) {
-            await api.updatePortfolio(portfolioId, { 
-                name: portfolioName.trim(),
-                description: `Updated portfolio: ${portfolioName.trim()}`
-            });
-            showAlert('Portfolio updated successfully', 'success');
-
-            // If this is the currently selected portfolio, update the current portfolio reference
-            if (currentPortfolio && currentPortfolio.id === portfolioId) {
-                currentPortfolio.name = portfolioName.trim();
-                currentPortfolio.description = `Updated portfolio: ${portfolioName.trim()}`;
-            }
-
-            await loadPortfoliosSection();
-        }
+        // Get portfolio data first
+        const response = await api.getPortfolio(portfolioId);
+        const portfolio = response.data; // Fix: use response.data instead of response.portfolio
+        
+        // Set current edit portfolio ID
+        currentEditPortfolioId = portfolioId;
+        
+        // Clear any previous validation states
+        const form = document.getElementById('editPortfolioForm');
+        form.classList.remove('was-validated');
+        
+        // Populate the modal form with current data
+        document.getElementById('editPortfolioName').value = portfolio.name || '';
+        document.getElementById('editPortfolioDescription').value = portfolio.description || '';
+        
+        // Show the modal
+        const modal = new bootstrap.Modal(document.getElementById('editPortfolioModal'));
+        modal.show();
+        
     } catch (error) {
         showAlert(error.message, 'danger');
     }
@@ -2193,6 +2195,43 @@ function setupEventListeners() {
     // Create portfolio form submit
     document.getElementById('create-portfolio-submit').addEventListener('click', function() {
         createPortfolio();
+    });
+    
+    // Edit portfolio form submit
+    document.getElementById('edit-portfolio-submit').addEventListener('click', async function() {
+        try {
+            const name = document.getElementById('editPortfolioName').value.trim();
+            const description = document.getElementById('editPortfolioDescription').value.trim();
+            
+            if (!name) {
+                showAlert('Portfolio name is required', 'warning');
+                return;
+            }
+            
+            // Update portfolio
+            await api.updatePortfolio(currentEditPortfolioId, {
+                name: name,
+                description: description
+            });
+            
+            showAlert('Portfolio updated successfully', 'success');
+            
+            // If this is the currently selected portfolio, update the current portfolio reference
+            if (currentPortfolio && currentPortfolio.id === currentEditPortfolioId) {
+                currentPortfolio.name = name;
+                currentPortfolio.description = description;
+            }
+            
+            // Close modal
+            const modal = bootstrap.Modal.getInstance(document.getElementById('editPortfolioModal'));
+            modal.hide();
+            
+            // Reload portfolios list
+            await loadPortfoliosSection();
+            
+        } catch (error) {
+            showAlert(error.message, 'danger');
+        }
     });
     
     // Update item form submit
