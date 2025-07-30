@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API Test</title>
+</head>
+<body>
+    <h1>API Test</h1>
+    <button onclick="testApi()">Test Stocks API</button>
+    <button onclick="testFetch()">Test Direct Fetch</button>
+    <div id="result"></div>
+
+    <script src="js/api.js"></script>
+    <script src="js/test-api.js"></script>
+    <script>
+        window.addEventListener('DOMContentLoaded', function() {
+            console.log('DOM loaded');
+            console.log('API object:', window.api);
+            if (window.api) {
+                console.log('API methods:', Object.getOwnPropertyNames(Object.getPrototypeOf(api)));
+                console.log('getStocks method exists:', typeof api.getStocks === 'function');
+            } else {
+                console.error('API object not available after DOM load');
+            }
+        });
+
+        async function testApi() {
+            try {
+                console.log('Testing API...');
+                console.log('API object:', window.api);
+                console.log('Test API object:', window.testApi);
+                
+                if (!window.api) {
+                    console.log('Using test API instead');
+                    const response = await window.testApi.getStocks();
+                    console.log('Test API response:', response);
+                    document.getElementById('result').innerHTML = '<pre>Test API: ' + JSON.stringify(response, null, 2) + '</pre>';
+                    return;
+                }
+                
+                console.log('API methods:', Object.getOwnPropertyNames(Object.getPrototypeOf(api)));
+                
+                // Test if method exists
+                if (typeof api.getStocks !== 'function') {
+                    throw new Error('getStocks method not found');
+                }
+                
+                const response = await api.getStocks(10);
+                console.log('Response:', response);
+                document.getElementById('result').innerHTML = '<pre>' + JSON.stringify(response, null, 2) + '</pre>';
+            } catch (error) {
+                console.error('Error:', error);
+                document.getElementById('result').innerHTML = '<pre style="color: red;">Error: ' + error.message + '</pre>';
+            }
+        }
+
+        async function testFetch() {
+            try {
+                console.log('Testing direct fetch...');
+                const response = await fetch('/api/stocks?limit=10');
+                const data = await response.json();
+                console.log('Direct fetch response:', data);
+                document.getElementById('result').innerHTML = '<pre>Direct fetch: ' + JSON.stringify(data, null, 2) + '</pre>';
+            } catch (error) {
+                console.error('Direct fetch error:', error);
+                document.getElementById('result').innerHTML = '<pre style="color: red;">Direct fetch error: ' + error.message + '</pre>';
+            }
+        }
+    </script>
+</body>
+</html>
