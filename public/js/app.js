@@ -1850,49 +1850,23 @@ async function buyMoreShares(itemId) {
     }
 }
 
-async function showBuyModal(item) {
+function showBuyModal(item) {
     const modal = new bootstrap.Modal(document.getElementById('editItemModal'));
     const modalTitle = document.querySelector('#editItemModal .modal-title');
     const form = document.getElementById('editItemForm');
     
     modalTitle.textContent = `Buy More - ${item.symbol}`;
     
-
-    // Get latest stock data from top_stocks table
-    let latestStockData = null;
-    let currency = 'USD'; // Default currency
-    let currentPrice = item.current_price || item.purchase_price;
-    
-    try {
-        if (window.api && typeof window.api.getStockBySymbol === 'function') {
-            const stockResponse = await window.api.getStockBySymbol(item.symbol);
-            if (stockResponse.success && stockResponse.data) {
-                latestStockData = stockResponse.data;
-                currency = latestStockData.currency || 'USD';
-                currentPrice = latestStockData.close_price || currentPrice;
-            }
-        }
-    } catch (error) {
-        console.warn('Failed to fetch latest stock data:', error);
-        // Use item's existing currency if available, otherwise default to USD
-        currency = item.currency || 'USD';
-    }
-    
     // Determine the step value based on currency
-    const stepValue = (currency === 'JPY') ? '1' : '0.01';
-    const priceValue = (currency === 'JPY') ? 
-        Math.round(parseFloat(currentPrice)) : 
-        parseFloat(currentPrice).toFixed(2);
-    
-    const currentPriceDisplay = (currency === 'JPY') ? 
-        Math.round(parseFloat(currentPrice)) : 
-        parseFloat(currentPrice).toFixed(2);
-
+    const stepValue = (item.currency === 'JPY') ? '1' : '0.01';
+    const priceValue = (item.currency === 'JPY') ? 
+        Math.round(parseFloat(item.current_price || item.purchase_price)) : 
+        (item.current_price || item.purchase_price);
     
     form.innerHTML = `
         <div class="alert alert-info">
             <i class="fas fa-info-circle me-2"></i>
-            <strong>Current Position:</strong> ${item.quantity} shares at ${currency === 'JPY' ? '¥' : '$'}${parseFloat(item.purchase_price).toFixed(currency === 'JPY' ? 0 : 2)} avg. cost
+            <strong>Current Position:</strong> ${item.quantity} shares at $${parseFloat(item.purchase_price).toFixed(2)} avg. cost
         </div>
         <div class="row">
             <div class="col-md-6 mb-3">
@@ -1911,17 +1885,7 @@ async function showBuyModal(item) {
             </div>
             <div class="col-md-6 mb-3">
                 <label class="form-label">Current Price</label>
-
-                <input type="number" class="form-control" id="buyCurrentPrice" step="${stepValue}" value="${currentPriceDisplay}" placeholder="Optional: Update current price">
-            </div>
-        </div>
-        <div class="row">
-            <div class="col-md-12 mb-3">
-                <small class="text-muted">
-                    <i class="fas fa-info-circle me-1"></i>
-                    Currency: ${currency} ${latestStockData ? '(from latest market data)' : '(default)'}
-                </small>
-
+                <input type="number" class="form-control" id="buyCurrentPrice" step="${stepValue}" value="${item.current_price || ''}" placeholder="Optional: Update current price">
             </div>
         </div>
     `;
@@ -2023,40 +1987,14 @@ async function sellShares(itemId) {
     }
 }
 
-async function showSellModal(item) {
+function showSellModal(item) {
     const modal = new bootstrap.Modal(document.getElementById('editItemModal'));
     const modalTitle = document.querySelector('#editItemModal .modal-title');
     const form = document.getElementById('editItemForm');
     
     modalTitle.textContent = `Sell - ${item.symbol}`;
     
-    // Get latest stock data from top_stocks table
-    let latestStockData = null;
-    let currency = 'USD'; // Default currency
-    let currentPrice = item.current_price || item.purchase_price;
-    
-    try {
-        if (window.api && typeof window.api.getStockBySymbol === 'function') {
-            const stockResponse = await window.api.getStockBySymbol(item.symbol);
-            if (stockResponse.success && stockResponse.data) {
-                latestStockData = stockResponse.data;
-                currency = latestStockData.currency || 'USD';
-                currentPrice = latestStockData.close_price || currentPrice;
-            }
-        }
-    } catch (error) {
-        console.warn('Failed to fetch latest stock data:', error);
-        // Use item's existing currency if available, otherwise default to USD
-        currency = item.currency || 'USD';
-    }
-    
-    const currentValue = parseFloat(item.quantity) * parseFloat(currentPrice);
-    
-    // Determine the step value based on currency
-    const stepValue = (currency === 'JPY') ? '1' : '0.01';
-    const priceValue = (currency === 'JPY') ? 
-        Math.round(parseFloat(currentPrice)) : 
-        parseFloat(currentPrice).toFixed(2);
+    const currentValue = parseFloat(item.quantity) * parseFloat(item.current_price || item.purchase_price);
     
     // Determine the step value based on currency
     const stepValue = (item.currency === 'JPY') ? '1' : '0.01';
@@ -2067,7 +2005,7 @@ async function showSellModal(item) {
     form.innerHTML = `
         <div class="alert alert-warning">
             <i class="fas fa-exclamation-triangle me-2"></i>
-            <strong>Current Position:</strong> ${item.quantity} shares worth ${currency === 'JPY' ? '¥' : '$'}${currentValue.toFixed(currency === 'JPY' ? 0 : 2)}
+            <strong>Current Position:</strong> ${item.quantity} shares worth $${currentValue.toFixed(2)}
         </div>
         <div class="row">
             <div class="col-md-6 mb-3">
@@ -2097,14 +2035,6 @@ async function showSellModal(item) {
                 </div>
             </div>
         </div>
-        <div class="row">
-            <div class="col-md-12 mb-3">
-                <small class="text-muted">
-                    <i class="fas fa-info-circle me-1"></i>
-                    Currency: ${currency} ${latestStockData ? '(from latest market data)' : '(default)'}
-                </small>
-            </div>
-        </div>
         <div class="row" id="sellPreview" style="display: none;">
             <div class="col-12">
                 <div class="alert alert-info">
@@ -2114,7 +2044,7 @@ async function showSellModal(item) {
                             <strong>Selling:</strong> <span id="previewQuantity">0</span> shares
                         </div>
                         <div class="col-md-4">
-                            <strong>Total Value:</strong> ${currency === 'JPY' ? '¥' : '$'}<span id="previewValue">0.00</span>
+                            <strong>Total Value:</strong> $<span id="previewValue">0.00</span>
                         </div>
                         <div class="col-md-4">
                             <strong>Remaining:</strong> <span id="previewRemaining">0</span> shares
@@ -2485,17 +2415,17 @@ function setupEventListeners() {
     });
     
     // Event delegation for dynamically created buttons
-    document.addEventListener('click', async function(e) {
+    document.addEventListener('click', function(e) {
         // Buy more button
         if (e.target.closest('.buy-item-btn')) {
             const itemId = e.target.closest('.buy-item-btn').dataset.itemId;
-            await buyMoreShares(parseInt(itemId));
+            buyMoreShares(parseInt(itemId));
         }
         
         // Sell button
         if (e.target.closest('.sell-item-btn')) {
             const itemId = e.target.closest('.sell-item-btn').dataset.itemId;
-            await sellShares(parseInt(itemId));
+            sellShares(parseInt(itemId));
         }
         
         // Edit portfolio button
