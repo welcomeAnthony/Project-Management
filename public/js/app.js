@@ -1708,6 +1708,26 @@ async function handleSymbolSelection(event) {
         
         // Set type to stock by default when selecting from stock list
         document.getElementById('type').value = 'stock';
+        
+        // Adjust step attribute based on currency
+        const currency = stockData.currency || 'USD';
+        const purchasePriceField = document.getElementById('purchasePrice');
+        const currentPriceField = document.getElementById('currentPrice');
+        
+        if (currency === 'JPY') {
+            // For Japanese Yen, use step of 1 (no decimals)
+            purchasePriceField.step = '1';
+            currentPriceField.step = '1';
+            
+            // If there's a current price, round it to integer
+            if (stockData.close_price) {
+                currentPriceField.value = Math.round(parseFloat(stockData.close_price)).toString();
+            }
+        } else {
+            // For other currencies, use step of 0.01 (2 decimal places)
+            purchasePriceField.step = '0.01';
+            currentPriceField.step = '0.01';
+        }
     } else {
         // Clear the auto-filled fields if no symbol is selected
         document.getElementById('name').value = '';
@@ -1715,6 +1735,41 @@ async function handleSymbolSelection(event) {
         document.getElementById('currentPrice').value = '';
         document.getElementById('currency').value = '';
         document.getElementById('type').value = '';
+        
+        // Reset step attributes to default
+        document.getElementById('purchasePrice').step = '0.01';
+        document.getElementById('currentPrice').step = '0.01';
+    }
+}
+
+// Function to adjust price input step attributes based on currency
+function adjustPriceStepForCurrency() {
+    const currencyField = document.getElementById('currency');
+    const purchasePriceField = document.getElementById('purchasePrice');
+    const currentPriceField = document.getElementById('currentPrice');
+    
+    if (!currencyField || !purchasePriceField || !currentPriceField) {
+        return;
+    }
+    
+    const currency = currencyField.value;
+    
+    if (currency === 'JPY') {
+        // For Japanese Yen, use step of 1 (no decimals)
+        purchasePriceField.step = '1';
+        currentPriceField.step = '1';
+        
+        // Round existing values to integers if they exist
+        if (purchasePriceField.value) {
+            purchasePriceField.value = Math.round(parseFloat(purchasePriceField.value)).toString();
+        }
+        if (currentPriceField.value) {
+            currentPriceField.value = Math.round(parseFloat(currentPriceField.value)).toString();
+        }
+    } else {
+        // For other currencies, use step of 0.01 (2 decimal places)
+        purchasePriceField.step = '0.01';
+        currentPriceField.step = '0.01';
     }
 }
 
@@ -1802,6 +1857,12 @@ function showBuyModal(item) {
     
     modalTitle.textContent = `Buy More - ${item.symbol}`;
     
+    // Determine the step value based on currency
+    const stepValue = (item.currency === 'JPY') ? '1' : '0.01';
+    const priceValue = (item.currency === 'JPY') ? 
+        Math.round(parseFloat(item.current_price || item.purchase_price)) : 
+        (item.current_price || item.purchase_price);
+    
     form.innerHTML = `
         <div class="alert alert-info">
             <i class="fas fa-info-circle me-2"></i>
@@ -1814,7 +1875,7 @@ function showBuyModal(item) {
             </div>
             <div class="col-md-6 mb-3">
                 <label class="form-label">Purchase Price *</label>
-                <input type="number" class="form-control" id="buyPrice" step="0.01" required value="${item.current_price || item.purchase_price}" placeholder="Enter purchase price">
+                <input type="number" class="form-control" id="buyPrice" step="${stepValue}" required value="${priceValue}" placeholder="Enter purchase price">
             </div>
         </div>
         <div class="row">
@@ -1824,7 +1885,7 @@ function showBuyModal(item) {
             </div>
             <div class="col-md-6 mb-3">
                 <label class="form-label">Current Price</label>
-                <input type="number" class="form-control" id="buyCurrentPrice" step="0.01" value="${item.current_price || ''}" placeholder="Optional: Update current price">
+                <input type="number" class="form-control" id="buyCurrentPrice" step="${stepValue}" value="${item.current_price || ''}" placeholder="Optional: Update current price">
             </div>
         </div>
     `;
@@ -1935,6 +1996,12 @@ function showSellModal(item) {
     
     const currentValue = parseFloat(item.quantity) * parseFloat(item.current_price || item.purchase_price);
     
+    // Determine the step value based on currency
+    const stepValue = (item.currency === 'JPY') ? '1' : '0.01';
+    const priceValue = (item.currency === 'JPY') ? 
+        Math.round(parseFloat(item.current_price || item.purchase_price)) : 
+        (item.current_price || item.purchase_price);
+    
     form.innerHTML = `
         <div class="alert alert-warning">
             <i class="fas fa-exclamation-triangle me-2"></i>
@@ -1951,7 +2018,7 @@ function showSellModal(item) {
             </div>
             <div class="col-md-6 mb-3">
                 <label class="form-label">Sell Price *</label>
-                <input type="number" class="form-control" id="sellPrice" step="0.01" required value="${item.current_price || item.purchase_price}" placeholder="Enter sell price">
+                <input type="number" class="form-control" id="sellPrice" step="${stepValue}" required value="${priceValue}" placeholder="Enter sell price">
             </div>
         </div>
         <div class="row">
