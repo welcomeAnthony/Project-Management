@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Top 10 Stocks - Portfolio Manager</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="css/style.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="index.html"><i class="fas fa-chart-line me-2"></i>Portfolio Manager</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto">
+                    <li class="nav-item">
+                        <a class="nav-link" href="index.html">
+                            <i class="fas fa-tachometer-alt me-1"></i>Dashboard
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="transactions.html">
+                            <i class="fas fa-exchange-alt me-1"></i>Transactions
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link active" href="top-stocks.html">
+                            <i class="fas fa-chart-line me-1"></i>Top Stocks
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="container-fluid mt-4">
+        <!-- Alert Messages -->
+        <div id="alert-container"></div>
+
+        <!-- Top Stocks Header -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h2 class="mb-0">
+                                    <i class="fas fa-chart-line me-2"></i>Top 10 Stocks Performance
+                                </h2>
+                                <p class="text-muted mb-0">Interactive stock price and volume charts</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Chart Section -->
+        <div class="row">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0"><i class="fas fa-chart-line me-2"></i>Stock Performance Chart</h5>
+                        <div class="d-flex align-items-center gap-3">
+                            <div class="d-flex align-items-center">
+                                <label class="form-label me-2 mb-0">Stock:</label>
+                                <select class="form-select" id="stockSelect" style="width: auto;" onchange="updateChart()">
+                                    <option value="">Loading stocks...</option>
+                                </select>
+                            </div>
+                            <div class="d-flex align-items-center">
+                                <label class="form-label me-2 mb-0">Metric:</label>
+                                <select class="form-select" id="attributeSelect" style="width: auto;" onchange="updateChart()">
+                                    <option value="close_price">Closing Price</option>
+                                    <option value="volume">Trading Volume</option>
+                                    <option value="open_price">Opening Price</option>
+                                    <option value="high_price">Daily High</option>
+                                    <option value="low_price">Daily Low</option>
+                                </select>
+                            </div>
+                            <div class="d-flex align-items-center">
+                                <label class="form-label me-2 mb-0">Period:</label>
+                                <select class="form-select" id="periodSelect" style="width: auto;" onchange="updateChart()">
+                                    <option value="7">7 Days</option>
+                                    <option value="14">14 Days</option>
+                                    <option value="30" selected>30 Days</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-body" style="height: 400px;">
+                        <!-- Loading -->
+                        <div id="loadingArea" class="text-center h-100 d-flex align-items-center justify-content-center" style="display: none;">
+                            <div>
+                                <div class="spinner-border text-primary" role="status">
+                                    <span class="visually-hidden">Loading...</span>
+                                </div>
+                                <p class="mt-2 text-muted">Loading chart data...</p>
+                            </div>
+                        </div>
+                        
+                        <!-- Chart Canvas -->
+                        <canvas id="stockChart" style="height: 100% !important; width: 100% !important; display: none;"></canvas>
+                        
+                        <!-- No Data Message -->
+                        <div id="noDataArea" class="text-center h-100 d-flex align-items-center justify-content-center" style="display: none;">
+                            <div class="text-muted">
+                                <i class="fas fa-chart-line fa-3x mb-3 opacity-50"></i>
+                                <h5>No Chart Data Available</h5>
+                                <p>Select a stock symbol to view its performance chart.<br>
+                                <small>Historical data may need to be fetched first using the API.</small></p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
+    <script src="js/theme.js"></script>
+    <script src="js/api.js"></script>
+    <script>
+        let availableSymbols = [];
+        let currentChart = null;
+
+        // Load data when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            // Show loading state initially
+            showLoading(true);
+            loadAvailableSymbols();
+        });
+
+        async function loadAvailableSymbols() {
+            try {
+                console.log('Loading available symbols...');
+                const response = await fetch('/api/top-stocks/symbols');
+                const data = await response.json();
+                
+                console.log('Symbols API response:', data);
+                
+                if (data.success && data.data && data.data.length > 0) {
+                    availableSymbols = data.data;
+                    populateStockSelect(data.data);
+                    
+                    // Auto-select first stock and load chart
+                    if (data.data.length > 0) {
+                        document.getElementById('stockSelect').value = data.data[0].symbol;
+                        console.log('Auto-selecting first stock:', data.data[0].symbol);
+                        updateChart();
+                    }
+                } else {
+                    console.error('Failed to load symbols:', data);
+                    showLoading(false);
+                    showNoData();
+                }
+            } catch (error) {
+                console.error('Error loading symbols:', error);
+                showLoading(false);
+                showNoData();
+            }
+        }
+
+        function populateStockSelect(symbols) {
+            const select = document.getElementById('stockSelect');
+            select.innerHTML = '<option value="">Select a stock...</option>';
+            
+            symbols.forEach(stock => {
+                const option = document.createElement('option');
+                option.value = stock.symbol;
+                option.textContent = `${stock.symbol} - ${stock.name}`;
+                select.appendChild(option);
+            });
+        }
+
+        async function updateChart() {
+            const stockSelect = document.getElementById('stockSelect');
+            const attributeSelect = document.getElementById('attributeSelect');
+            const periodSelect = document.getElementById('periodSelect');
+            
+            const selectedStock = stockSelect.value;
+            const selectedAttribute = attributeSelect.value;
+            const selectedPeriod = periodSelect.value;
+            
+            console.log('Updating chart for:', selectedStock, selectedAttribute, selectedPeriod);
+            
+            if (!selectedStock) {
+                showNoData();
+                return;
+            }
+            
+            showLoading(true);
+            
+            try {
+                const url = `/api/top-stocks/chart/${selectedStock}?attribute=${selectedAttribute}&days=${selectedPeriod}`;
+                console.log('Fetching chart data from:', url);
+                
+                const response = await fetch(url);
+                const data = await response.json();
+                
+                console.log('Chart API response:', data);
+                
+                if (data.success && data.data && data.data.length > 0) {
+                    displayChart(data);
+                    showLoading(false);
+                } else {
+                    console.warn('No chart data received:', data);
+                    showNoData();
+                    showLoading(false);
+                }
+            } catch (error) {
+                console.error('Error loading chart data:', error);
+                showNoData();
+                showLoading(false);
+            }
+        }
+
+        function displayChart(data) {
+            hideAllStates();
+            
+            // Show the chart canvas
+            document.getElementById('stockChart').style.display = 'block';
+            
+            const ctx = document.getElementById('stockChart').getContext('2d');
+            
+            // Destroy existing chart
+            if (currentChart) {
+                currentChart.destroy();
+            }
+            
+            const isVolumeChart = data.attribute === 'volume';
+            const chartColor = isVolumeChart ? '#ffc107' : '#007bff';
+            const chartBorderColor = isVolumeChart ? '#e0a800' : '#0056b3';
+            
+            currentChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: data.data.map(item => {
+                        const date = new Date(item.date);
+                        return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                    }),
+                    datasets: [{
+                        label: getAttributeDisplayName(data.attribute),
+                        data: data.data.map(item => parseFloat(item.value)),
+                        borderColor: chartBorderColor,
+                        backgroundColor: chartColor + '20',
+                        borderWidth: 3,
+                        fill: true,
+                        tension: 0.4,
+                        pointBackgroundColor: chartBorderColor,
+                        pointBorderColor: '#ffffff',
+                        pointBorderWidth: 2,
+                        pointRadius: 4,
+                        pointHoverRadius: 6
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: {
+                        intersect: false,
+                        mode: 'index'
+                    },
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: 'top',
+                            labels: {
+                                usePointStyle: true,
+                                padding: 20
+                            }
+                        },
+                        tooltip: {
+                            backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                            titleColor: 'white',
+                            bodyColor: 'white',
+                            borderColor: chartBorderColor,
+                            borderWidth: 1,
+                            cornerRadius: 8,
+                            displayColors: false,
+                            callbacks: {
+                                label: function(context) {
+                                    const value = context.parsed.y;
+                                    if (isVolumeChart) {
+                                        return `Volume: ${formatVolume(value)}`;
+                                    } else {
+                                        return `${getAttributeDisplayName(data.attribute)}: $${formatNumber(value)}`;
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            grid: {
+                                color: 'rgba(0, 0, 0, 0.1)'
+                            },
+                            ticks: {
+                                maxTicksLimit: 10
+                            }
+                        },
+                        y: {
+                            grid: {
+                                color: 'rgba(0, 0, 0, 0.1)'
+                            },
+                            ticks: {
+                                callback: function(value) {
+                                    if (isVolumeChart) {
+                                        return formatVolume(value);
+                                    } else {
+                                        return '$' + formatNumber(value);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function getAttributeDisplayName(attribute) {
+            const names = {
+                'close_price': 'Closing Price',
+                'open_price': 'Opening Price',
+                'high_price': 'Daily High',
+                'low_price': 'Daily Low',
+                'volume': 'Trading Volume'
+            };
+            return names[attribute] || attribute;
+        }
+
+        function showLoading(show) {
+            if (show) {
+                hideAllStates();
+                document.getElementById('loadingArea').style.display = 'flex';
+            } else {
+                document.getElementById('loadingArea').style.display = 'none';
+            }
+        }
+
+        function showNoData() {
+            hideAllStates();
+            document.getElementById('noDataArea').style.display = 'flex';
+        }
+
+        function hideAllStates() {
+            document.getElementById('loadingArea').style.display = 'none';
+            document.getElementById('noDataArea').style.display = 'none';
+            document.getElementById('stockChart').style.display = 'none';
+        }
+
+        function formatNumber(num) {
+            if (!num) return 'N/A';
+            return Number(num).toLocaleString(undefined, {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+            });
+        }
+
+        function formatVolume(volume) {
+            if (!volume) return 'N/A';
+            
+            if (volume >= 1e9) {
+                return (volume / 1e9).toFixed(1) + 'B';
+            } else if (volume >= 1e6) {
+                return (volume / 1e6).toFixed(1) + 'M';
+            } else if (volume >= 1e3) {
+                return (volume / 1e3).toFixed(1) + 'K';
+            }
+            
+            return volume.toLocaleString();
+        }
+    </script>
+</body>
+</html>
