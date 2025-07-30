@@ -10,6 +10,7 @@ const { createRateLimit, securityHeaders, errorHandler, notFoundHandler } = requ
 const portfolioRoutes = require('./routes/portfolios');
 const portfolioItemRoutes = require('./routes/portfolioItems');
 const transactionRoutes = require('./routes/transactions');
+const stockRoutes = require('./routes/stocks');
 
 // Import database and swagger
 const { testConnection } = require('./config/database');
@@ -60,6 +61,7 @@ app.get('/', (req, res) => {
 app.use('/api/portfolios', portfolioRoutes);
 app.use('/api', portfolioItemRoutes);
 app.use('/api/transactions', transactionRoutes);
+app.use('/api/stocks', stockRoutes);
 
 // Error handling middleware
 app.use(notFoundHandler);

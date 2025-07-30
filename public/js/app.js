@@ -1247,11 +1247,85 @@ async function confirmDeletePortfolio(portfolioId) {
 // Portfolio item management
 async function loadAddItemSection() {
     await loadPortfolios();
+    
+    // Wait a bit for API to load if it's not available yet
+    let retries = 0;
+    while (!window.api && retries < 10) {
+        console.log('Waiting for API to load...', retries);
+        await new Promise(resolve => setTimeout(resolve, 100));
+        retries++;
+    }
+    
+    await loadStocksForSelection();
     document.getElementById('addItemForm').reset();
     clearFormValidation(document.getElementById('addItemForm'));
     
     // Set default date to today
     document.getElementById('purchaseDate').value = new Date().toISOString().split('T')[0];
+    
+    // Add event listener for symbol selection
+    const symbolSelect = document.getElementById('symbol');
+    symbolSelect.addEventListener('change', handleSymbolSelection);
+}
+
+async function loadStocksForSelection() {
+    try {
+        let response;
+        
+        // Check if api object exists and has the method
+        if (window.api && typeof window.api.getStocks === 'function') {
+            response = await window.api.getStocks(1000);
+        } else {
+            console.log('Using direct fetch for stocks');
+            // Fallback to direct fetch
+            const fetchResponse = await fetch('/api/stocks?limit=1000');
+            response = await fetchResponse.json();
+        }
+        
+        if (response.success) {
+            const symbolSelect = document.getElementById('symbol');
+            symbolSelect.innerHTML = '<option value="">Select Symbol</option>';
+            
+            response.data.forEach(stock => {
+                const option = document.createElement('option');
+                option.value = stock.symbol;
+                option.textContent = `${stock.symbol} - ${stock.name}`;
+                option.dataset.stockData = JSON.stringify(stock);
+                symbolSelect.appendChild(option);
+            });
+            
+            console.log(`Loaded ${response.data.length} stocks`);
+        } else {
+            throw new Error(response.message || 'Failed to load stocks');
+        }
+    } catch (error) {
+        console.error('Error loading stocks:', error);
+        showAlert('Failed to load stock data: ' + error.message, 'warning');
+    }
+}
+
+async function handleSymbolSelection(event) {
+    const selectedOption = event.target.selectedOptions[0];
+    
+    if (selectedOption && selectedOption.dataset.stockData) {
+        const stockData = JSON.parse(selectedOption.dataset.stockData);
+        
+        // Auto-fill the form fields
+        document.getElementById('name').value = stockData.name || '';
+        document.getElementById('sector').value = stockData.sector || '';
+        document.getElementById('currentPrice').value = stockData.close_price || '';
+        document.getElementById('currency').value = stockData.currency || 'USD';
+        
+        // Set type to stock by default when selecting from stock list
+        document.getElementById('type').value = 'stock';
+    } else {
+        // Clear the auto-filled fields if no symbol is selected
+        document.getElementById('name').value = '';
+        document.getElementById('sector').value = '';
+        document.getElementById('currentPrice').value = '';
+        document.getElementById('currency').value = '';
+        document.getElementById('type').value = '';
+    }
 }
 
 async function addPortfolioItem() {
@@ -1259,7 +1333,7 @@ async function addPortfolioItem() {
     
     const itemData = {
         portfolio_id: parseInt(document.getElementById('portfolioSelect').value),
-        symbol: document.getElementById('symbol').value.toUpperCase(),
+        symbol: document.getElementById('symbol').value,
         name: document.getElementById('name').value,
         type: document.getElementById('type').value,
         quantity: parseFloat(document.getElementById('quantity').value),
@@ -1292,6 +1366,12 @@ async function addPortfolioItem() {
             showAlert('Portfolio item added successfully', 'success');
             form.reset();
             clearFormValidation(form);
+            
+            // Clear auto-filled readonly fields after reset
+            document.getElementById('name').value = '';
+            document.getElementById('sector').value = '';
+            document.getElementById('currentPrice').value = '';
+            document.getElementById('currency').value = '';
             
             // Always refresh dashboard and portfolio data after adding an item
             // This ensures the UI is updated regardless of which portfolio the item was added to
