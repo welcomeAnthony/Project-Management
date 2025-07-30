@@ -116,40 +116,49 @@ const { pool } = require('../config/database');
  *         description: Server error
  */
 router.get('/', async (req, res) => {
+  const limit = req.query.limit || 10;
+  const search = req.query.search || '';
+  
   try {
-    const { limit = 10, search = '' } = req.query;
-    
+    // Use regular query instead of prepared statements to avoid MySQL2 issues
     let query = `
       SELECT symbol, name, sector, close_price, currency, updated_at
-      FROM top_stocks t1
-      WHERE updated_at = (
-        SELECT MAX(updated_at) 
-        FROM top_stocks t2 
-        WHERE t2.symbol = t1.symbol
-      )
+      FROM top_stocks
     `;
-    const params = [];
     
     if (search) {
-      query += ` AND (symbol LIKE ? OR name LIKE ?)`;
-      params.push(`%${search}%`, `%${search}%`);
+      const escapedSearch = pool.escape(`%${search}%`);
+      query += ` WHERE (symbol LIKE ${escapedSearch} OR name LIKE ${escapedSearch})`;
     }
     
+    const limitValue = parseInt(limit) || 10;
     query += `
       ORDER BY updated_at DESC
-      LIMIT ?
+      LIMIT ${limitValue}
     `;
-    params.push(parseInt(limit));
     
-    const [rows] = await pool.execute(query, params);
+    console.log('Executing query:', query);
+    
+    const [rows] = await pool.query(query);
+    
+    // Remove duplicates manually in JavaScript to get latest for each symbol
+    const uniqueStocks = [];
+    const seenSymbols = new Set();
+    
+    for (const row of rows) {
+      if (!seenSymbols.has(row.symbol)) {
+        uniqueStocks.push(row);
+        seenSymbols.add(row.symbol);
+      }
+    }
     
     res.json({
       success: true,
-      data: rows,
-      total: rows.length
+      data: uniqueStocks.slice(0, limitValue),
+      total: uniqueStocks.length
     });
   } catch (error) {
-    console.error('Error fetching stocks:', error);
+    console.error('Query failed:', error);
     res.status(500).json({
       success: false,
       message: 'Failed to fetch stocks',
