@@ -116,6 +116,8 @@ const { pool } = require('../config/database');
  *         description: Server error
  */
 router.get('/', async (req, res) => {
+
+
   const limit = req.query.limit || 10;
   const search = req.query.search || '';
   
@@ -159,6 +161,7 @@ router.get('/', async (req, res) => {
     });
   } catch (error) {
     console.error('Query failed:', error);
+
     res.status(500).json({
       success: false,
       message: 'Failed to fetch stocks',
