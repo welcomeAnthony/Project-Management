@@ -4,7 +4,7 @@ const { fork } = require('child_process');
 const TopStockScheduler = require('./topStockScheduler');
 
 // Schedule task to run at 00:00 (midnight) every day
-cron.schedule('36 23 * * *', () => {
+cron.schedule('16 11 * * *', () => {
     console.log('Running generatePerformanceData script at:', new Date().toISOString());
     
     const scriptPath = path.join(__dirname, 'generatePerformanceData.js');
@@ -16,7 +16,7 @@ cron.schedule('36 23 * * *', () => {
 });
 
 // Schedule Top 10 Stocks data update - Daily at 6:00 AM
-cron.schedule('47 23 * * *', async () => {
+cron.schedule('16 11 * * *', async () => {
     console.log('Running daily Top 10 stocks data update at:', new Date().toISOString());
     
     try {
