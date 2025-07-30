@@ -12,7 +12,7 @@
     <!-- Navigation -->
     <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
         <div class="container-fluid">
-            <a class="navbar-brand" href="#"><i class="fas fa-chart-line me-2"></i>Portfolio Manager</a>
+            <a class="navbar-brand" href="#"><i class="fas fa-star me-2"></i>5 Star General</a>
             
             <!-- Market Indices Flip Display -->
             <div class="market-indices-container d-flex">
@@ -61,6 +61,16 @@
                         <a class="nav-link" href="http://localhost:3000/api-docs" target="_blank">
                             <i class="fas fa-book me-1"></i>API Docs
                         </a>
+                    </li>
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" id="userDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="fas fa-user-circle me-1"></i><span id="usernameDisplay">User</span>
+                        </a>
+                        <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userDropdown">
+                            <li><a class="dropdown-item" href="#" id="logoutBtn">
+                                <i class="fas fa-sign-out-alt me-2"></i>Logout
+                            </a></li>
+                        </ul>
                     </li>
                 </ul>
             </div>
@@ -456,6 +466,52 @@
     <script src="js/theme.js"></script>
     <script src="js/api.js"></script>
     <script src="js/app.js"></script>
+    
+    <!-- Login Check Script -->
+    <script>
+        // Check if user is logged in
+        document.addEventListener('DOMContentLoaded', function() {
+            // Check login status
+            const isLoggedIn = localStorage.getItem('isLoggedIn');
+            const username = localStorage.getItem('username');
+            
+            if (!isLoggedIn || isLoggedIn !== 'true') {
+                // Redirect to login page if not logged in
+                window.location.href = 'login.html';
+                return;
+            }
+            
+            // Display username in navbar
+            if (username) {
+                document.getElementById('usernameDisplay').textContent = username;
+            }
+            
+            // Handle logout
+            document.getElementById('logoutBtn').addEventListener('click', function(e) {
+                e.preventDefault();
+                
+                // Clear login data
+                localStorage.removeItem('isLoggedIn');
+                localStorage.removeItem('username');
+                localStorage.removeItem('loginTime');
+                
+                // Show logout message briefly
+                const alertContainer = document.getElementById('alert-container');
+                alertContainer.innerHTML = `
+                    <div class="alert alert-info alert-dismissible fade show" role="alert">
+                        <i class="fas fa-sign-out-alt me-2"></i>
+                        Logged out successfully. Redirecting to login page...
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                `;
+                
+                // Redirect to login page after short delay
+                setTimeout(() => {
+                    window.location.href = 'login.html';
+                }, 1500);
+            });
+        });
+    </script>
     
     <!-- Set today's date for purchase date field -->
     <script>
